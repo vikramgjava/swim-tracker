@@ -6,12 +6,17 @@ struct ChatView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \ChatMessage.timestamp) private var messages: [ChatMessage]
     @Query(sort: \SwimSession.date, order: .reverse) private var sessions: [SwimSession]
+    @Query(
+        filter: #Predicate<Workout> { !$0.isCompleted },
+        sort: \Workout.scheduledDate
+    ) private var upcomingWorkouts: [Workout]
 
     @State private var service = AnthropicService()
     @State private var messageText = ""
     @State private var showSettings = false
     @AppStorage("anthropicAPIKey") private var apiKey = ""
     @State private var showError = false
+    @State private var showWorkoutBanner = false
 
     var body: some View {
         NavigationStack {
@@ -45,6 +50,18 @@ struct ChatView: View {
                 }
                 .safeAreaInset(edge: .bottom) {
                     VStack(spacing: 0) {
+                        if showWorkoutBanner {
+                            HStack {
+                                Text("\u{2705} Next 3 workouts updated! Check Upcoming tab.")
+                                    .font(.subheadline.bold())
+                                Spacer()
+                            }
+                            .padding()
+                            .background(.green.opacity(0.15), in: RoundedRectangle(cornerRadius: 12))
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                         Divider()
                         HStack(spacing: 12) {
                             Button {
@@ -104,6 +121,19 @@ struct ChatView: View {
                     showError = true
                 }
             }
+            .onChange(of: service.workoutsUpdated) {
+                if service.workoutsUpdated {
+                    withAnimation {
+                        showWorkoutBanner = true
+                    }
+                    Task {
+                        try? await Task.sleep(for: .seconds(3))
+                        withAnimation {
+                            showWorkoutBanner = false
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -133,6 +163,48 @@ struct ChatView: View {
         .presentationDetents([.medium])
     }
 
+    private var swimContext: String {
+        var parts: [String] = []
+
+        // Recent swim sessions
+        let recentSessions = sessions.prefix(5)
+        if !recentSessions.isEmpty {
+            var sessionLines = ["RECENT SWIM SESSIONS:"]
+            for s in recentSessions {
+                var line = "  \(s.date.formatted(date: .abbreviated, time: .omitted)): \(Int(s.distance))m in \(Int(s.duration))min, difficulty \(s.difficulty)/10"
+                if !s.notes.isEmpty { line += " — \(s.notes)" }
+                sessionLines.append(line)
+            }
+            parts.append(sessionLines.joined(separator: "\n"))
+        }
+
+        // Overall progress
+        if !sessions.isEmpty {
+            let totalSwims = sessions.count
+            let totalDistance = sessions.reduce(0) { $0 + $1.distance }
+            let totalDuration = sessions.reduce(0) { $0 + $1.duration }
+            let avgPace = totalDuration > 0 ? totalDistance / totalDuration : 0
+            parts.append("""
+            PROGRESS SUMMARY:
+              Total swims: \(totalSwims)
+              Total distance: \(Int(totalDistance))m
+              Average pace: \(String(format: "%.0f", avgPace))m/min
+              Goal: 3,000m continuous by August 30, 2026
+            """)
+        }
+
+        // Existing upcoming workouts
+        if !upcomingWorkouts.isEmpty {
+            var workoutLines = ["CURRENT UPCOMING WORKOUTS:"]
+            for w in upcomingWorkouts {
+                workoutLines.append("  \(w.scheduledDate.formatted(date: .abbreviated, time: .omitted)): \(w.title) — \(w.totalDistance)m, \(w.focus), effort \(w.effortLevel)")
+            }
+            parts.append(workoutLines.joined(separator: "\n"))
+        }
+
+        return parts.joined(separator: "\n\n")
+    }
+
     private func sendMessage() {
         let text = messageText.trimmingCharacters(in: .whitespaces)
         guard !text.isEmpty else { return }
@@ -141,10 +213,16 @@ struct ChatView: View {
         let userMessage = ChatMessage(content: text, isUser: true)
         modelContext.insert(userMessage)
 
+        let context = swimContext
         Task {
             do {
                 let historyWithoutNew = messages
-                let response = try await service.sendMessage(userContent: text, conversationHistory: historyWithoutNew)
+                let response = try await service.sendMessage(
+                    userContent: text,
+                    conversationHistory: historyWithoutNew,
+                    modelContext: modelContext,
+                    swimContext: context
+                )
                 let assistantMessage = ChatMessage(content: response, isUser: false)
                 modelContext.insert(assistantMessage)
             } catch {
@@ -182,7 +260,7 @@ struct ChatView: View {
             }
         }
 
-        text += "\n\nPlease analyze my progress and suggest what I should focus on next."
+        text += "\n\nPlease analyze my progress and give me my next 3 workouts."
 
         messageText = text
         sendMessage()
@@ -221,5 +299,5 @@ struct MessageBubble: View {
 
 #Preview {
     ChatView(isDarkMode: .constant(false))
-        .modelContainer(for: [SwimSession.self, ChatMessage.self], inMemory: true)
+        .modelContainer(for: [SwimSession.self, ChatMessage.self, Workout.self], inMemory: true)
 }

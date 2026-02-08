@@ -5,44 +5,26 @@ struct DashboardView: View {
     @Binding var isDarkMode: Bool
     @Query(sort: \SwimSession.date, order: .reverse) private var sessions: [SwimSession]
 
-    private var totalDistance: Double {
-        sessions.reduce(0) { $0 + $1.distance }
+    private var weeklyDistance: Double {
+        let calendar = Calendar.current
+        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: .now)?.start ?? .now
+        return sessions.filter { $0.date >= startOfWeek }.reduce(0) { $0 + $1.distance }
     }
 
-    private var totalDuration: Double {
-        sessions.reduce(0) { $0 + $1.duration }
-    }
-
-    private var averageDifficulty: Double {
-        guard !sessions.isEmpty else { return 0 }
-        return Double(sessions.reduce(0) { $0 + $1.difficulty }) / Double(sessions.count)
+    private var monthlyDistance: Double {
+        let calendar = Calendar.current
+        let startOfMonth = calendar.dateInterval(of: .month, for: .now)?.start ?? .now
+        return sessions.filter { $0.date >= startOfMonth }.reduce(0) { $0 + $1.distance }
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
-                    // Alcatraz goal banner
-                    VStack(spacing: 8) {
-                        Image(systemName: "figure.open.water.swim")
-                            .font(.system(size: 44))
-                            .foregroundStyle(.blue)
-                        Text("Alcatraz Swim Training")
-                            .font(.title2.bold())
-                        Text("Goal: 2,400 meters (1.5 miles)")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding()
-                    .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 16))
-
-                    // Stats grid
+                    // Distance stats
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                        StatCard(title: "Total Swims", value: "\(sessions.count)", icon: "number", color: .blue)
-                        StatCard(title: "Total Distance", value: String(format: "%.0fm", totalDistance), icon: "arrow.left.and.right", color: .teal)
-                        StatCard(title: "Total Time", value: String(format: "%.0f min", totalDuration), icon: "clock.fill", color: .orange)
-                        StatCard(title: "Avg Difficulty", value: String(format: "%.1f", averageDifficulty), icon: "flame.fill", color: .red)
+                        StatCard(title: "This Week", value: String(format: "%.0fm", weeklyDistance), icon: "calendar", color: .blue)
+                        StatCard(title: "This Month", value: String(format: "%.0fm", monthlyDistance), icon: "calendar.badge.clock", color: .teal)
                     }
 
                     // Recent swims
@@ -52,21 +34,27 @@ struct DashboardView: View {
                                 .font(.headline)
 
                             ForEach(sessions.prefix(5)) { session in
-                                HStack {
-                                    VStack(alignment: .leading) {
-                                        Text(session.date, style: .date)
-                                            .font(.subheadline.bold())
-                                        Text("\(Int(session.distance))m  ·  \(Int(session.duration)) min")
+                                NavigationLink(value: session) {
+                                    HStack {
+                                        VStack(alignment: .leading) {
+                                            Text(session.date, style: .date)
+                                                .font(.subheadline.bold())
+                                            Text("\(Int(session.distance))m  ·  \(Int(session.duration)) min")
+                                                .font(.caption)
+                                                .foregroundStyle(.secondary)
+                                        }
+                                        Spacer()
+                                        Text("\(session.difficulty)/10")
+                                            .font(.caption.bold())
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(.blue.opacity(0.15), in: Capsule())
+                                        Image(systemName: "chevron.right")
                                             .font(.caption)
-                                            .foregroundStyle(.secondary)
+                                            .foregroundStyle(.tertiary)
                                     }
-                                    Spacer()
-                                    Text("\(session.difficulty)/10")
-                                        .font(.caption.bold())
-                                        .padding(.horizontal, 8)
-                                        .padding(.vertical, 4)
-                                        .background(.blue.opacity(0.15), in: Capsule())
                                 }
+                                .buttonStyle(.plain)
                                 .padding(.vertical, 4)
                             }
                         }
@@ -82,6 +70,9 @@ struct DashboardView: View {
                     }
                 }
                 .padding()
+            }
+            .navigationDestination(for: SwimSession.self) { session in
+                SessionDetailView(session: session)
             }
             .navigationTitle("Dashboard")
             .toolbar {
