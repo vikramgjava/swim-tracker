@@ -56,6 +56,23 @@ struct UpcomingView: View {
     private func markCompleted(_ workout: Workout) {
         workout.isCompleted = true
         workout.completedDate = .now
+
+        // Log as a SwimSession for Dashboard/history
+        let estimatedDuration = Double(workout.totalDistance) / 50.0 // ~50m/min training pace
+        let difficulty = parseDifficulty(from: workout.effortLevel)
+        let session = SwimSession(
+            date: .now,
+            distance: Double(workout.totalDistance),
+            duration: estimatedDuration,
+            notes: "\(workout.title) — \(workout.focus)",
+            difficulty: difficulty
+        )
+        modelContext.insert(session)
+    }
+
+    private func parseDifficulty(from effortLevel: String) -> Int {
+        let digits = effortLevel.compactMap { $0.wholeNumberValue }
+        return digits.max() ?? 5
     }
 }
 
