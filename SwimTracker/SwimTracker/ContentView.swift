@@ -31,5 +31,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .modelContainer(for: [SwimSession.self, ChatMessage.self], inMemory: true)
+        .modelContainer(for: [SwimSession.self, ChatMessage.self, Workout.self], inMemory: true)
 }

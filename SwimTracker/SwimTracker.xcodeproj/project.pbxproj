@@ -18,6 +18,8 @@
 		A1B2C3D400000019 /* ChatMessage.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000009 /* ChatMessage.swift */; };
 		A1B2C3D40000001A /* AnthropicService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000A /* AnthropicService.swift */; };
 		A1B2C3D40000001B /* ChatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000B /* ChatView.swift */; };
+		A1B2C3D40000001C /* Workout.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000C /* Workout.swift */; };
+		A1B2C3D40000001D /* WorkoutSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000D /* WorkoutSeeder.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +34,8 @@
 		A1B2C3D400000009 /* ChatMessage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatMessage.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000A /* AnthropicService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnthropicService.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000B /* ChatView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatView.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000C /* Workout.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Workout.swift; sourceTree = "<group>"; };
+		A1B2C3D40000000D /* WorkoutSeeder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutSeeder.swift; sourceTree = "<group>"; };
 		A1B2C3D400000031 /* SwimTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwimTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -62,6 +66,7 @@
 				A1B2C3D400000022 /* Models */,
 				A1B2C3D400000023 /* Views */,
 				A1B2C3D400000026 /* Services */,
+				A1B2C3D400000027 /* Helpers */,
 				A1B2C3D400000007 /* Assets.xcassets */,
 				A1B2C3D400000024 /* Preview Content */,
 			);
@@ -73,6 +78,7 @@
 			children = (
 				A1B2C3D400000003 /* SwimSession.swift */,
 				A1B2C3D400000009 /* ChatMessage.swift */,
+				A1B2C3D40000000C /* Workout.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -94,6 +100,14 @@
 				A1B2C3D400000008 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		A1B2C3D400000027 /* Helpers */ = {
+			isa = PBXGroup;
+			children = (
+				A1B2C3D40000000D /* WorkoutSeeder.swift */,
+			);
+			path = Helpers;
 			sourceTree = "<group>";
 		};
 		A1B2C3D400000026 /* Services */ = {
@@ -191,6 +205,8 @@
 				A1B2C3D400000019 /* ChatMessage.swift in Sources */,
 				A1B2C3D40000001A /* AnthropicService.swift in Sources */,
 				A1B2C3D40000001B /* ChatView.swift in Sources */,
+				A1B2C3D40000001C /* Workout.swift in Sources */,
+				A1B2C3D40000001D /* WorkoutSeeder.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
