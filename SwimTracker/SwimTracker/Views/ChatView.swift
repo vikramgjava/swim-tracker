@@ -15,63 +15,62 @@ struct ChatView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                // Message list
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(messages) { message in
-                                MessageBubble(message: message)
-                                    .id(message.id)
-                            }
-
-                            if service.isLoading {
-                                HStack {
-                                    ProgressView()
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 12)
-                                        .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 16))
-                                    Spacer()
-                                }
-                                .padding(.horizontal)
-                                .id("loading")
-                            }
+            ScrollViewReader { proxy in
+                ScrollView {
+                    VStack(spacing: 12) {
+                        ForEach(messages) { message in
+                            MessageBubble(message: message)
+                                .id(message.id)
                         }
-                        .padding(.vertical)
+
+                        if service.isLoading {
+                            HStack {
+                                ProgressView()
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 12)
+                                    .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 16))
+                                Spacer()
+                            }
+                            .padding(.horizontal)
+                            .id("loading")
+                        }
                     }
-                    .onChange(of: messages.count) {
-                        scrollToBottom(proxy: proxy)
-                    }
-                    .onChange(of: service.isLoading) {
-                        scrollToBottom(proxy: proxy)
-                    }
+                    .padding(.vertical)
                 }
-
-                Divider()
-
-                // Input area
-                HStack(spacing: 12) {
-                    Button {
-                        shareLastSwim()
-                    } label: {
-                        Image(systemName: "figure.open.water.swim")
-                            .font(.title3)
-                    }
-                    .disabled(sessions.isEmpty || service.isLoading)
-
-                    TextField("Ask your coach...", text: $messageText)
-                        .textFieldStyle(.roundedBorder)
-                        .onSubmit { sendMessage() }
-
-                    Button {
-                        sendMessage()
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.title2)
-                    }
-                    .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty || service.isLoading)
+                .onChange(of: messages.count) {
+                    scrollToBottom(proxy: proxy)
                 }
-                .padding()
+                .onChange(of: service.isLoading) {
+                    scrollToBottom(proxy: proxy)
+                }
+                .safeAreaInset(edge: .bottom) {
+                    VStack(spacing: 0) {
+                        Divider()
+                        HStack(spacing: 12) {
+                            Button {
+                                shareLastSwim()
+                            } label: {
+                                Image(systemName: "figure.open.water.swim")
+                                    .font(.title3)
+                            }
+                            .disabled(sessions.isEmpty || service.isLoading)
+
+                            TextField("Ask your coach...", text: $messageText)
+                                .textFieldStyle(.roundedBorder)
+                                .onSubmit { sendMessage() }
+
+                            Button {
+                                sendMessage()
+                            } label: {
+                                Image(systemName: "arrow.up.circle.fill")
+                                    .font(.title2)
+                            }
+                            .disabled(messageText.trimmingCharacters(in: .whitespaces).isEmpty || service.isLoading)
+                        }
+                        .padding()
+                    }
+                    .background(.bar)
+                }
             }
             .navigationTitle("Coach")
             .toolbar {
