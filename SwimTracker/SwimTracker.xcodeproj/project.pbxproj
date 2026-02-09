@@ -52,7 +52,7 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		A1B2C3D400000020 /* root */ = {
+		A1B2C3D400000020 = {
 			isa = PBXGroup;
 			children = (
 				A1B2C3D400000021 /* SwimTracker */,
@@ -105,12 +105,12 @@
 			path = "Preview Content";
 			sourceTree = "<group>";
 		};
-		A1B2C3D400000027 /* Helpers */ = {
+		A1B2C3D400000025 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				A1B2C3D40000000D /* WorkoutSeeder.swift */,
+				A1B2C3D400000031 /* SwimTracker.app */,
 			);
-			path = Helpers;
+			name = Products;
 			sourceTree = "<group>";
 		};
 		A1B2C3D400000026 /* Services */ = {
@@ -121,12 +121,12 @@
 			path = Services;
 			sourceTree = "<group>";
 		};
-		A1B2C3D400000025 /* Products */ = {
+		A1B2C3D400000027 /* Helpers */ = {
 			isa = PBXGroup;
 			children = (
-				A1B2C3D400000031 /* SwimTracker.app */,
+				A1B2C3D40000000D /* WorkoutSeeder.swift */,
 			);
-			name = Products;
+			path = Helpers;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -172,7 +172,7 @@
 				en,
 				Base,
 			);
-			mainGroup = A1B2C3D400000020 /* root */;
+			mainGroup = A1B2C3D400000020;
 			productRefGroup = A1B2C3D400000025 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -344,8 +344,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"SwimTracker/Preview Content\"";
+				DEVELOPMENT_TEAM = 7UW43YH83S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Alcatraz Training";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -372,8 +374,10 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"SwimTracker/Preview Content\"";
+				DEVELOPMENT_TEAM = 7UW43YH83S;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = "Alcatraz Training";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

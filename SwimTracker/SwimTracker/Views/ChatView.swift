@@ -50,6 +50,36 @@ struct ChatView: View {
                 }
                 .safeAreaInset(edge: .bottom) {
                     VStack(spacing: 0) {
+                        if !service.proposedWorkouts.isEmpty {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Coach proposed \(service.proposedWorkouts.count) workouts")
+                                        .font(.subheadline.bold())
+                                    Text("Review and accept to add to Upcoming")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Button("Decline") {
+                                    withAnimation {
+                                        service.declineWorkouts()
+                                    }
+                                }
+                                .buttonStyle(.bordered)
+                                .tint(.red)
+                                Button("Accept") {
+                                    withAnimation {
+                                        service.acceptWorkouts(modelContext: modelContext)
+                                    }
+                                }
+                                .buttonStyle(.borderedProminent)
+                            }
+                            .padding()
+                            .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
+                            .padding(.horizontal)
+                            .padding(.top, 8)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                        }
                         if showWorkoutBanner {
                             HStack {
                                 Text("\u{2705} Next 3 workouts updated! Check Upcoming tab.")
@@ -72,9 +102,12 @@ struct ChatView: View {
                             }
                             .disabled(sessions.isEmpty || service.isLoading)
 
-                            TextField("Ask your coach...", text: $messageText)
-                                .textFieldStyle(.roundedBorder)
+                            TextField("Ask your coach...", text: $messageText, axis: .vertical)
+                                .lineLimit(1...5)
                                 .onSubmit { sendMessage() }
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 8)
+                                .background(Color(.systemGray6), in: Capsule())
 
                             Button {
                                 sendMessage()
@@ -220,7 +253,6 @@ struct ChatView: View {
                 let response = try await service.sendMessage(
                     userContent: text,
                     conversationHistory: historyWithoutNew,
-                    modelContext: modelContext,
                     swimContext: context
                 )
                 let assistantMessage = ChatMessage(content: response, isUser: false)

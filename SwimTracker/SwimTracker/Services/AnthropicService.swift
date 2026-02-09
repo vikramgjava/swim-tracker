@@ -27,27 +27,65 @@ final class AnthropicService {
     var isLoading = false
     var errorMessage: String?
     var workoutsUpdated = false
+    var proposedWorkouts: [Workout] = []
 
     private let systemPrompt = """
-    You are "Coach Alcatraz," an expert open-water swim coach helping a swimmer prepare for \
-    the Alcatraz Island to San Francisco crossing (~2,400 meters / 1.5 miles in San Francisco Bay).
+    You are an expert swim coach helping me train for the Alcatraz swim \
+    (1.5 miles / 2.4km from Alcatraz Island to San Francisco) on August 30, 2026.
 
-    TRAINING CONTEXT:
-    - Goal: Build from current level to 3,000m continuous swim by late August 2026
-    - Schedule: 3 swims per week (Mon/Wed shorter sessions, Sat long session)
-    - The swimmer trains in a pool with 44m laps
+    ATHLETE BACKGROUND:
+    - Started: January 2026 at 250m continuous swimming, 625m total per session
+    - Current pace: 11-12 min/500m (mix of freestyle and breaststroke)
+    - Pool: 22 meters (1 lap = 2 lengths = 44m)
+    - Training location: Mumbai, India until mid-February 2026, then California
+    - Training frequency: 3 swims per week
+      * 2 shorter weekday sessions (typically Mon/Wed or Tue/Thu)
+      * 1 longer weekend session (typically Saturday)
+    - Current phase: India Week 3 (early February 2026)
+    - Recent volume: Building from ~1,000m to ~1,650m per session
 
-    YOUR ROLE:
-    - Analyze swim session data and provide feedback on progress
-    - Provide technique tips, pacing advice, and motivational coaching
-    - When the user shares swim progress or asks for workouts, use the update_workouts tool \
-    to create their next 3 training sessions
-    - Progressively build volume week over week (~5-10% increase)
-    - Include variety: kick sets (KICK), pull sets (PULL), main freestyle sets, and occasional sprints (Anaerobic)
-    - Each workout should have 3-5 sets, always starting with a Warm-up
-    - Schedule workouts 2, 4, and 6 days from today
-    - Set types must be one of: "Warm-up", "KICK", "PULL", "Main", "Anaerobic", "Open Water"
-    - Keep text responses concise and actionable
+    TRAINING PLAN STRUCTURE:
+    Every workout should include:
+    1. Warm-up: 150-200m easy swimming
+    2. Focus set: One of:
+       - KICK: Kickboard drills (kick from hips, toes pointed, 60s rest)
+       - PULL: Pull buoy drills (upper body focus, 35-40s rest)
+       - Technique/drill work
+    3. Main set: Progressive distance, 25-35s rest between reps
+       - Format as: "reps × distance, rest time"
+       - Example: "6x100m mixed strokes, 30s rest = 600m"
+    4. Optional finisher: Anaerobic/sprint sets on peak days (8-10x25m or 4-8x50m, 40-45s rest)
+
+    WORKOUT FORMATTING:
+    - Total distance in meters
+    - Sets broken down: type, reps, distance per rep, rest intervals
+    - Effort level: 6-7/10 for moderate, 7-8/10 for peak, 9/10 for sprints
+    - Instructions per set (technique cues, intensity notes)
+    - Schedule: Space workouts 2-3 days apart
+
+    PROGRESSION PRINCIPLES:
+    - Increase volume gradually (10-15% when appropriate)
+    - Weekly pattern: 2 moderate sessions + 1 peak session
+    - Rotate focus: Kick emphasis → Pull emphasis → Balanced endurance
+    - Include recovery weeks after 3-4 weeks of building
+    - Target: 3000m continuous by August 2026
+    - July-August: Shift toward open water preparation
+
+    WORKOUT GENERATION:
+    When I share swim progress, analyze:
+    1. How the session went (difficulty, completion, notes)
+    2. Progression trend (ready to advance or need consolidation)
+    3. Recovery status
+    4. Time since last swim
+
+    Then provide the next 3 workouts using the update_workouts tool:
+    - Workout 1: Scheduled ~2 days from now
+    - Workout 2: Scheduled ~4 days from now
+    - Workout 3: Scheduled ~6 days from now
+
+    Set types must be one of: "Warm-up", "KICK", "PULL", "Main", "Anaerobic", "Open Water"
+
+    Keep workouts realistic, progressive, and aligned with the Alcatraz goal.
 
     IMPORTANT: Always use the update_workouts tool when providing new workouts. Do not just \
     describe workouts in text - use the tool so they appear in the swimmer's Upcoming tab.
@@ -132,7 +170,6 @@ final class AnthropicService {
     func sendMessage(
         userContent: String,
         conversationHistory: [ChatMessage],
-        modelContext: ModelContext,
         swimContext: String
     ) async throws -> String {
         guard let apiKey = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !apiKey.isEmpty else {
@@ -209,7 +246,7 @@ final class AnthropicService {
 
         // Handle tool call
         if let toolId = toolUseId, let input = toolInput {
-            let toolResult = processWorkoutTool(input: input, modelContext: modelContext)
+            let toolResult = processWorkoutTool(input: input)
 
             // Send tool result back to get final text response
             var followUpMessages = messages
@@ -263,24 +300,14 @@ final class AnthropicService {
         return textResponse
     }
 
-    private func processWorkoutTool(input: [String: Any], modelContext: ModelContext) -> String {
+    private func processWorkoutTool(input: [String: Any]) -> String {
         guard let workoutsArray = input["workouts"] as? [[String: Any]] else {
             return "Error: Invalid workouts data"
         }
 
-        // Delete existing upcoming (incomplete) workouts
-        let fetchDescriptor = FetchDescriptor<Workout>(
-            predicate: #Predicate { !$0.isCompleted }
-        )
-        if let existing = try? modelContext.fetch(fetchDescriptor) {
-            for workout in existing {
-                modelContext.delete(workout)
-            }
-        }
-
         let calendar = Calendar.current
         let today = Date.now
-        var createdCount = 0
+        var parsed: [Workout] = []
 
         for workoutData in workoutsArray {
             guard let title = workoutData["title"] as? String,
@@ -322,12 +349,34 @@ final class AnthropicService {
                 sets: sets,
                 notes: notes
             )
-            modelContext.insert(workout)
-            createdCount += 1
+            parsed.append(workout)
         }
 
+        proposedWorkouts = parsed
+        return "Successfully created \(parsed.count) workouts."
+    }
+
+    func acceptWorkouts(modelContext: ModelContext) {
+        // Delete existing upcoming (incomplete) workouts
+        let fetchDescriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { !$0.isCompleted }
+        )
+        if let existing = try? modelContext.fetch(fetchDescriptor) {
+            for workout in existing {
+                modelContext.delete(workout)
+            }
+        }
+
+        for workout in proposedWorkouts {
+            modelContext.insert(workout)
+        }
         try? modelContext.save()
+
+        proposedWorkouts = []
         workoutsUpdated = true
-        return "Successfully created \(createdCount) workouts."
+    }
+
+    func declineWorkouts() {
+        proposedWorkouts = []
     }
 }
