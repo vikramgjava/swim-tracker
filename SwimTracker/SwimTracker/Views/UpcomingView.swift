@@ -9,6 +9,10 @@ struct UpcomingView: View {
         sort: \Workout.scheduledDate
     ) private var upcomingWorkouts: [Workout]
 
+    @State private var completingWorkout: Workout? = nil
+    @State private var completionDate: Date = .now
+    @State private var completionDuration: Double = 30
+
     private var nextWorkouts: [Workout] {
         Array(upcomingWorkouts.prefix(3))
     }
@@ -25,7 +29,9 @@ struct UpcomingView: View {
                 } else {
                     List(nextWorkouts) { workout in
                         WorkoutCard(workout: workout) {
-                            markCompleted(workout)
+                            completionDate = .now
+                            completionDuration = Double(workout.totalDistance) / 50.0
+                            completingWorkout = workout
                         }
                     }
                     .listStyle(.plain)
@@ -50,20 +56,48 @@ struct UpcomingView: View {
                     }
                 }
             }
+            .sheet(item: $completingWorkout) { workout in
+                NavigationStack {
+                    Form {
+                        Section("Session Details") {
+                            DatePicker("Date", selection: $completionDate, displayedComponents: .date)
+
+                            VStack(alignment: .leading) {
+                                Text("Duration: \(Int(completionDuration)) minutes")
+                                Slider(value: $completionDuration, in: 5...180, step: 5)
+                            }
+                        }
+                    }
+                    .navigationTitle("Complete Workout")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") {
+                                completingWorkout = nil
+                            }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Save") {
+                                markCompleted(workout, date: completionDate, duration: completionDuration)
+                                completingWorkout = nil
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
-    private func markCompleted(_ workout: Workout) {
+    private func markCompleted(_ workout: Workout, date: Date, duration: Double) {
         workout.isCompleted = true
-        workout.completedDate = .now
+        workout.completedDate = date
 
         // Log as a SwimSession for Dashboard/history
-        let estimatedDuration = Double(workout.totalDistance) / 50.0 // ~50m/min training pace
         let difficulty = parseDifficulty(from: workout.effortLevel)
         let session = SwimSession(
-            date: .now,
+            date: date,
             distance: Double(workout.totalDistance),
-            duration: estimatedDuration,
+            duration: duration,
             notes: "\(workout.title) — \(workout.focus)",
             difficulty: difficulty
         )
