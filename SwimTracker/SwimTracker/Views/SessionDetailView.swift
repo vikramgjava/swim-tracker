@@ -119,6 +119,179 @@ struct SessionDetailView: View {
             LabeledContent("Difficulty") {
                 DifficultyIndicator(level: session.difficulty)
             }
+            if session.healthKitId != nil {
+                LabeledContent("Source") {
+                    HStack(spacing: 4) {
+                        Image(systemName: "applewatch")
+                        Text("Apple Watch")
+                    }
+                    .foregroundStyle(.blue)
+                    .font(.caption)
+                }
+            }
+        }
+
+        // Workout Summary (from HealthKit detailed data)
+        if let data = session.detailedData {
+            Section("Workout Summary") {
+                if let swolf = data.averageSWOLF {
+                    LabeledContent("Avg SWOLF") {
+                        HStack(spacing: 4) {
+                            Text("\(Int(swolf))")
+                                .bold()
+                            Text("(\(swolfLabel(Int(swolf))))")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(swolfColor(Int(swolf)))
+                    }
+                } else {
+                    LabeledContent("Avg SWOLF") { Text("N/A").foregroundStyle(.secondary) }
+                }
+
+                if let pace = data.averagePace {
+                    LabeledContent("Avg Pace") {
+                        Text("\(formatPace(pace)) /100m")
+                            .monospacedDigit()
+                    }
+                } else {
+                    LabeledContent("Avg Pace") { Text("N/A").foregroundStyle(.secondary) }
+                }
+
+                if let hr = data.averageHeartRate {
+                    LabeledContent("Avg HR") {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(hrZoneColor(hr))
+                                .frame(width: 8, height: 8)
+                            Text("\(hr) bpm")
+                            Text("(\(hrZoneLabel(hr)))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else {
+                    LabeledContent("Avg HR") { Text("N/A").foregroundStyle(.secondary) }
+                }
+
+                if let maxHR = data.maxHeartRate {
+                    LabeledContent("Max HR") {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(hrZoneColor(maxHR))
+                                .frame(width: 8, height: 8)
+                            Text("\(maxHR) bpm")
+                            Text("(\(hrZoneLabel(maxHR)))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else {
+                    LabeledContent("Max HR") { Text("N/A").foregroundStyle(.secondary) }
+                }
+            }
+
+            // Sets breakdown
+            Section("Sets") {
+                ForEach(Array(data.sets.enumerated()), id: \.offset) { index, set in
+                    DisclosureGroup {
+                        // Lap-by-lap breakdown
+                        ForEach(Array(set.laps.enumerated()), id: \.offset) { lapIndex, lap in
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 8) {
+                                    Text("Lap \(lapIndex + 1)")
+                                        .font(.caption.bold())
+                                        .frame(width: 48, alignment: .leading)
+                                    Text("\(Int(lap.distance))m")
+                                        .font(.caption)
+                                    Text(formatLapDuration(lap.duration))
+                                        .font(.caption.monospacedDigit())
+
+                                    if let swolf = lap.swolf {
+                                        Text("SWOLF \(swolf)")
+                                            .font(.caption2)
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 1)
+                                            .background(swolfColor(swolf).opacity(0.2), in: Capsule())
+                                            .foregroundStyle(swolfColor(swolf))
+                                    }
+
+                                    Spacer()
+
+                                    if let hr = lap.heartRate {
+                                        HStack(spacing: 2) {
+                                            Circle()
+                                                .fill(hrZoneColor(hr))
+                                                .frame(width: 6, height: 6)
+                                            Text("\(hr)")
+                                                .font(.caption2)
+                                        }
+                                    }
+                                }
+
+                                HStack(spacing: 8) {
+                                    if let pace = lap.pace {
+                                        Text("\(formatPace(pace))/100m")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let stroke = lap.strokeType {
+                                        Text(stroke)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let count = lap.strokeCount {
+                                        Text("\(count) strokes")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Set \(index + 1): \(Int(set.totalDistance))m")
+                                    .font(.subheadline.bold())
+                                Text("· \(set.laps.count) laps")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                if set.restAfter > 0 {
+                                    Text("· rest \(Int(set.restAfter))s")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            HStack(spacing: 12) {
+                                Text(set.strokeType)
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.blue.opacity(0.1), in: Capsule())
+                                if let swolf = set.averageSWOLF {
+                                    Text("SWOLF \(Int(swolf))")
+                                        .font(.caption2)
+                                        .foregroundStyle(swolfColor(Int(swolf)))
+                                }
+                                if let pace = set.averagePace {
+                                    Text("\(formatPace(pace))/100m")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if let hr = set.averageHeartRate {
+                                    HStack(spacing: 2) {
+                                        Circle()
+                                            .fill(hrZoneColor(hr))
+                                            .frame(width: 6, height: 6)
+                                        Text("\(hr) bpm")
+                                            .font(.caption2)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         if !session.notes.isEmpty {
@@ -180,6 +353,14 @@ struct SessionDetailView: View {
             TextField("How did the swim feel?", text: $editNotes, axis: .vertical)
                 .lineLimit(3...6)
         }
+    }
+
+    // MARK: - Helpers
+
+    private func formatLapDuration(_ seconds: TimeInterval) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%d:%02d", mins, secs)
     }
 
     // MARK: - Actions

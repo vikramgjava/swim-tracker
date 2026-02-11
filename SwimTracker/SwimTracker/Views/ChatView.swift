@@ -15,6 +15,8 @@ struct ChatView: View {
     @State private var messageText = ""
     @State private var showSettings = false
     @AppStorage("anthropicAPIKey") private var apiKey = ""
+    @AppStorage("healthKitEnabled") private var healthKitEnabled = false
+    @State private var healthKitManager = HealthKitManager()
     @State private var showError = false
     @State private var showWorkoutBanner = false
 
@@ -185,6 +187,18 @@ struct ChatView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+
+                Section("Apple Health") {
+                    Toggle("Import from Apple Health", isOn: $healthKitEnabled)
+                        .onChange(of: healthKitEnabled) { _, newValue in
+                            if newValue {
+                                Task { await healthKitManager.requestAuthorization() }
+                            }
+                        }
+                    Text("Import swim workouts recorded on Apple Watch.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
@@ -207,6 +221,41 @@ struct ChatView: View {
             for s in recentSessions {
                 var line = "  \(s.date.formatted(date: .abbreviated, time: .omitted)): \(Int(s.distance))m in \(Int(s.duration))min, difficulty \(s.difficulty)/10"
                 if !s.notes.isEmpty { line += " — \(s.notes)" }
+                if s.healthKitId != nil { line += " (from Apple Watch)" }
+
+                // Include detailed data if available
+                if let data = s.detailedData {
+                    var details: [String] = []
+                    details.append("Apple Watch data: \(data.sets.count) sets")
+                    for (i, set) in data.sets.enumerated() {
+                        var setDesc = "Set \(i + 1): \(Int(set.totalDistance))m"
+                        if let swolf = set.averageSWOLF {
+                            setDesc += " (avg SWOLF \(Int(swolf)))"
+                        }
+                        details.append(setDesc)
+                    }
+                    if let hr = data.averageHeartRate {
+                        var hrDesc = "HR avg \(hr) bpm (\(hrZoneLabel(hr)))"
+                        if let maxHR = data.maxHeartRate {
+                            hrDesc += ", max \(maxHR) bpm"
+                        }
+                        details.append(hrDesc)
+                    }
+                    if let swolf = data.averageSWOLF {
+                        details.append("Overall SWOLF: \(Int(swolf)) (\(swolfLabel(Int(swolf))))")
+                    }
+                    if let pace = data.averagePace {
+                        details.append("Avg pace: \(formatPace(pace))/100m")
+                    }
+                    // Stroke distribution
+                    let strokeTypes = data.sets.map(\.strokeType)
+                    let uniqueStrokes = Set(strokeTypes)
+                    if uniqueStrokes.count > 1 || (uniqueStrokes.count == 1 && uniqueStrokes.first != "Unknown") {
+                        details.append("Strokes: \(strokeTypes.joined(separator: ", "))")
+                    }
+                    line += "\n    " + details.joined(separator: "; ")
+                }
+
                 sessionLines.append(line)
             }
             parts.append(sessionLines.joined(separator: "\n"))
@@ -281,6 +330,21 @@ struct ChatView: View {
 
         if !lastSwim.notes.isEmpty {
             text += "\n- Notes: \(lastSwim.notes)"
+        }
+
+        // Include detailed data if available
+        if let data = lastSwim.detailedData {
+            text += "\n- Source: Apple Watch"
+            if let swolf = data.averageSWOLF {
+                text += "\n- SWOLF: \(Int(swolf))"
+            }
+            if let pace = data.averagePace {
+                text += "\n- Pace: \(formatPace(pace))/100m"
+            }
+            if let hr = data.averageHeartRate {
+                text += "\n- Avg HR: \(hr) bpm"
+            }
+            text += "\n- Sets: \(data.sets.count)"
         }
 
         text += "\n\nProgress toward 3,000m goal: \(String(format: "%.0f", progress))% (\(Int(totalDistance))m total)"
