@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 enum AnthropicError: LocalizedError {
     case missingAPIKey
@@ -25,38 +26,178 @@ enum AnthropicError: LocalizedError {
 final class AnthropicService {
     var isLoading = false
     var errorMessage: String?
+    var workoutsUpdated = false
+    var proposedWorkouts: [Workout] = []
 
     private let systemPrompt = """
-    You are "Coach Alcatraz," an expert open-water swim coach specializing in preparing swimmers \
-    for the Alcatraz Island to San Francisco crossing (~2,400 meters / 1.5 miles). You provide \
-    personalized training advice, technique tips, workout adjustments, and motivational coaching. \
-    Keep responses concise and actionable. When given swim data, analyze it and suggest improvements. \
-    Consider factors like distance progression, pace, difficulty ratings, and consistency.
+    You are an expert swim coach helping me train for the Alcatraz swim \
+    (1.5 miles / 2.4km from Alcatraz Island to San Francisco) on August 30, 2026.
+
+    ATHLETE BACKGROUND:
+    - Started: January 2026 at 250m continuous swimming, 625m total per session
+    - Current pace: 11-12 min/500m (mix of freestyle and breaststroke)
+    - Pool: 22 meters (1 lap = 2 lengths = 44m)
+    - Training location: Mumbai, India until mid-February 2026, then California
+    - Training frequency: 3 swims per week
+      * 2 shorter weekday sessions (typically Mon/Wed or Tue/Thu)
+      * 1 longer weekend session (typically Saturday)
+    - Current phase: India Week 3 (early February 2026)
+    - Recent volume: Building from ~1,000m to ~1,650m per session
+
+    TRAINING PLAN STRUCTURE:
+    Every workout should include:
+    1. Warm-up: 150-200m easy swimming
+    2. Focus set: One of:
+       - KICK: Kickboard drills (kick from hips, toes pointed, 60s rest)
+       - PULL: Pull buoy drills (upper body focus, 35-40s rest)
+       - Technique/drill work
+    3. Main set: Progressive distance, 25-35s rest between reps
+       - Format as: "reps × distance, rest time"
+       - Example: "6x100m mixed strokes, 30s rest = 600m"
+    4. Optional finisher: Anaerobic/sprint sets on peak days (8-10x25m or 4-8x50m, 40-45s rest)
+
+    WORKOUT FORMATTING:
+    - Total distance in meters
+    - Sets broken down: type, reps, distance per rep, rest intervals
+    - Effort level: 6-7/10 for moderate, 7-8/10 for peak, 9/10 for sprints
+    - Instructions per set (technique cues, intensity notes)
+    - Schedule: Space workouts 2-3 days apart
+
+    PROGRESSION PRINCIPLES:
+    - Increase volume gradually (10-15% when appropriate)
+    - Weekly pattern: 2 moderate sessions + 1 peak session
+    - Rotate focus: Kick emphasis → Pull emphasis → Balanced endurance
+    - Include recovery weeks after 3-4 weeks of building
+    - Target: 3000m continuous by August 2026
+    - July-August: Shift toward open water preparation
+
+    WORKOUT GENERATION:
+    When I share swim progress, analyze:
+    1. How the session went (difficulty, completion, notes)
+    2. Progression trend (ready to advance or need consolidation)
+    3. Recovery status
+    4. Time since last swim
+
+    Then provide the next 3 workouts using the update_workouts tool:
+    - Workout 1: Scheduled ~2 days from now
+    - Workout 2: Scheduled ~4 days from now
+    - Workout 3: Scheduled ~6 days from now
+
+    Set types must be one of: "Warm-up", "KICK", "PULL", "Main", "Anaerobic", "Open Water"
+
+    Keep workouts realistic, progressive, and aligned with the Alcatraz goal.
+
+    IMPORTANT: Always use the update_workouts tool when providing new workouts. Do not just \
+    describe workouts in text - use the tool so they appear in the swimmer's Upcoming tab.
     """
 
-    func sendMessage(userContent: String, conversationHistory: [ChatMessage]) async throws -> String {
+    private let workoutTool: [String: Any] = [
+        "name": "update_workouts",
+        "description": "Create or update the swimmer's next training workouts. This saves workouts to their app so they appear in the Upcoming tab. Always provide exactly 3 workouts.",
+        "input_schema": [
+            "type": "object",
+            "properties": [
+                "workouts": [
+                    "type": "array",
+                    "description": "Array of 3 workout objects",
+                    "items": [
+                        "type": "object",
+                        "properties": [
+                            "title": [
+                                "type": "string",
+                                "description": "Workout title, e.g. 'Week 4 - Monday Evening'"
+                            ],
+                            "days_from_now": [
+                                "type": "integer",
+                                "description": "Number of days from today to schedule this workout"
+                            ],
+                            "total_distance": [
+                                "type": "integer",
+                                "description": "Total workout distance in meters"
+                            ],
+                            "focus": [
+                                "type": "string",
+                                "description": "Workout focus, e.g. 'Kick Focus', 'Pull Focus', 'Endurance'"
+                            ],
+                            "effort_level": [
+                                "type": "string",
+                                "description": "Effort level, e.g. '6-7/10', '7-8/10'"
+                            ],
+                            "notes": [
+                                "type": "string",
+                                "description": "Optional coach notes for this workout"
+                            ],
+                            "sets": [
+                                "type": "array",
+                                "description": "Workout sets",
+                                "items": [
+                                    "type": "object",
+                                    "properties": [
+                                        "type": [
+                                            "type": "string",
+                                            "enum": ["Warm-up", "KICK", "PULL", "Main", "Anaerobic", "Open Water"],
+                                            "description": "Set type"
+                                        ],
+                                        "reps": [
+                                            "type": "integer",
+                                            "description": "Number of repetitions"
+                                        ],
+                                        "distance": [
+                                            "type": "integer",
+                                            "description": "Distance per rep in meters"
+                                        ],
+                                        "rest": [
+                                            "type": "integer",
+                                            "description": "Rest between reps in seconds"
+                                        ],
+                                        "instructions": [
+                                            "type": "string",
+                                            "description": "Instructions for this set"
+                                        ]
+                                    ] as [String: Any],
+                                    "required": ["type", "reps", "distance", "rest", "instructions"]
+                                ] as [String: Any]
+                            ]
+                        ] as [String: Any],
+                        "required": ["title", "days_from_now", "total_distance", "focus", "effort_level", "sets"]
+                    ] as [String: Any]
+                ]
+            ] as [String: Any],
+            "required": ["workouts"]
+        ] as [String: Any]
+    ]
+
+    func sendMessage(
+        userContent: String,
+        conversationHistory: [ChatMessage],
+        swimContext: String
+    ) async throws -> String {
         guard let apiKey = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !apiKey.isEmpty else {
             throw AnthropicError.missingAPIKey
         }
 
         isLoading = true
         errorMessage = nil
+        workoutsUpdated = false
         defer { isLoading = false }
 
         let recentHistory = conversationHistory.suffix(20)
-        var messages: [[String: String]] = []
+        var messages: [[String: Any]] = []
         for msg in recentHistory {
             messages.append([
                 "role": msg.isUser ? "user" : "assistant",
                 "content": msg.content
             ])
         }
-        messages.append(["role": "user", "content": userContent])
+
+        let fullUserContent = swimContext.isEmpty ? userContent : "\(userContent)\n\n---\nCURRENT DATA:\n\(swimContext)"
+        messages.append(["role": "user", "content": fullUserContent])
 
         let body: [String: Any] = [
             "model": "claude-sonnet-4-5-20250929",
-            "max_tokens": 1024,
+            "max_tokens": 4096,
             "system": systemPrompt,
+            "tools": [workoutTool],
             "messages": messages
         ]
 
@@ -85,12 +226,157 @@ final class AnthropicService {
         }
 
         guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let content = json["content"] as? [[String: Any]],
-              let firstBlock = content.first,
-              let text = firstBlock["text"] as? String else {
+              let contentBlocks = json["content"] as? [[String: Any]] else {
             throw AnthropicError.parseError
         }
 
-        return text
+        var textResponse = ""
+        var toolUseId: String?
+        var toolInput: [String: Any]?
+
+        for block in contentBlocks {
+            let blockType = block["type"] as? String
+            if blockType == "text", let text = block["text"] as? String {
+                textResponse += text
+            } else if blockType == "tool_use" {
+                toolUseId = block["id"] as? String
+                toolInput = block["input"] as? [String: Any]
+            }
+        }
+
+        // Handle tool call
+        if let toolId = toolUseId, let input = toolInput {
+            let toolResult = processWorkoutTool(input: input)
+
+            // Send tool result back to get final text response
+            var followUpMessages = messages
+            followUpMessages.append([
+                "role": "assistant",
+                "content": contentBlocks
+            ])
+            followUpMessages.append([
+                "role": "user",
+                "content": [
+                    [
+                        "type": "tool_result",
+                        "tool_use_id": toolId,
+                        "content": toolResult
+                    ] as [String: Any]
+                ]
+            ])
+
+            let followUpBody: [String: Any] = [
+                "model": "claude-sonnet-4-5-20250929",
+                "max_tokens": 1024,
+                "system": systemPrompt,
+                "tools": [workoutTool],
+                "messages": followUpMessages
+            ]
+
+            let followUpData = try JSONSerialization.data(withJSONObject: followUpBody)
+            var followUpRequest = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
+            followUpRequest.httpMethod = "POST"
+            followUpRequest.setValue("application/json", forHTTPHeaderField: "content-type")
+            followUpRequest.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+            followUpRequest.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+            followUpRequest.httpBody = followUpData
+
+            let (followUpResponseData, _) = try await URLSession.shared.data(for: followUpRequest)
+
+            if let followUpJson = try? JSONSerialization.jsonObject(with: followUpResponseData) as? [String: Any],
+               let followUpContent = followUpJson["content"] as? [[String: Any]] {
+                for block in followUpContent {
+                    if block["type"] as? String == "text", let text = block["text"] as? String {
+                        textResponse = text
+                    }
+                }
+            }
+        }
+
+        if textResponse.isEmpty {
+            throw AnthropicError.parseError
+        }
+
+        return textResponse
+    }
+
+    private func processWorkoutTool(input: [String: Any]) -> String {
+        guard let workoutsArray = input["workouts"] as? [[String: Any]] else {
+            return "Error: Invalid workouts data"
+        }
+
+        let calendar = Calendar.current
+        let today = Date.now
+        var parsed: [Workout] = []
+
+        for workoutData in workoutsArray {
+            guard let title = workoutData["title"] as? String,
+                  let daysFromNow = workoutData["days_from_now"] as? Int,
+                  let totalDistance = workoutData["total_distance"] as? Int,
+                  let focus = workoutData["focus"] as? String,
+                  let effortLevel = workoutData["effort_level"] as? String,
+                  let setsArray = workoutData["sets"] as? [[String: Any]] else {
+                continue
+            }
+
+            let scheduledDate = calendar.date(byAdding: .day, value: daysFromNow, to: today) ?? today
+            let notes = workoutData["notes"] as? String
+
+            var sets: [WorkoutSet] = []
+            for setData in setsArray {
+                guard let type = setData["type"] as? String,
+                      let reps = setData["reps"] as? Int,
+                      let distance = setData["distance"] as? Int,
+                      let rest = setData["rest"] as? Int,
+                      let instructions = setData["instructions"] as? String else {
+                    continue
+                }
+                sets.append(WorkoutSet(
+                    type: type,
+                    reps: reps,
+                    distance: distance,
+                    rest: rest,
+                    instructions: instructions
+                ))
+            }
+
+            let workout = Workout(
+                scheduledDate: scheduledDate,
+                title: title,
+                totalDistance: totalDistance,
+                focus: focus,
+                effortLevel: effortLevel,
+                sets: sets,
+                notes: notes
+            )
+            parsed.append(workout)
+        }
+
+        proposedWorkouts = parsed
+        return "Successfully created \(parsed.count) workouts."
+    }
+
+    func acceptWorkouts(modelContext: ModelContext) {
+        // Delete existing upcoming (incomplete) workouts
+        let fetchDescriptor = FetchDescriptor<Workout>(
+            predicate: #Predicate { !$0.isCompleted }
+        )
+        if let existing = try? modelContext.fetch(fetchDescriptor) {
+            for workout in existing {
+                modelContext.delete(workout)
+            }
+        }
+
+        for workout in proposedWorkouts {
+            modelContext.insert(workout)
+        }
+        try? modelContext.save()
+
+        proposedWorkouts = []
+        workoutsUpdated = true
+    }
+
+    func declineWorkouts() {
+        proposedWorkouts = []
     }
 }

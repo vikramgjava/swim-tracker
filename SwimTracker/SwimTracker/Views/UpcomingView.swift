@@ -1,89 +1,53 @@
 import SwiftUI
 import SwiftData
 
-struct Workout: Identifiable {
-    let id = UUID()
-    let title: String
-    let description: String
-    let targetDistance: Int // meters
-    let targetDuration: Int // minutes
-    let scheduledDate: Date
-    let icon: String
-}
-
 struct UpcomingView: View {
     @Binding var isDarkMode: Bool
-    @Query(sort: \SwimSession.date, order: .reverse) private var sessions: [SwimSession]
+    @Environment(\.modelContext) private var modelContext
+    @Query(
+        filter: #Predicate<Workout> { !$0.isCompleted },
+        sort: \Workout.scheduledDate
+    ) private var upcomingWorkouts: [Workout]
 
-    private var workouts: [Workout] {
-        let calendar = Calendar.current
-        let today = Date.now
+    @State private var completingWorkout: Workout? = nil
+    @State private var completionDate: Date = .now
+    @State private var completionDuration: Double = 30
 
-        // Determine next workout distances based on training progress
-        let lastDistance = sessions.first?.distance ?? 400
-        let bump = min(lastDistance + 200, 2400)
-
-        return [
-            Workout(
-                title: "Endurance Build",
-                description: "Steady pace, focus on breathing rhythm and sighting.",
-                targetDistance: Int(bump),
-                targetDuration: Int(bump / 20),
-                scheduledDate: calendar.date(byAdding: .day, value: 1, to: today)!,
-                icon: "figure.pool.swim"
-            ),
-            Workout(
-                title: "Interval Training",
-                description: "4×200m at race pace with 60s rest between sets.",
-                targetDistance: 800,
-                targetDuration: 40,
-                scheduledDate: calendar.date(byAdding: .day, value: 3, to: today)!,
-                icon: "bolt.fill"
-            ),
-            Workout(
-                title: "Open Water Simulation",
-                description: "Continuous swim with minimal wall pushoffs. Practice sighting every 10 strokes.",
-                targetDistance: Int(min(bump + 200, 2400)),
-                targetDuration: Int(min(bump + 200, 2400) / 18),
-                scheduledDate: calendar.date(byAdding: .day, value: 6, to: today)!,
-                icon: "water.waves"
-            ),
-        ]
+    private var nextWorkouts: [Workout] {
+        Array(upcomingWorkouts.prefix(3))
     }
 
     var body: some View {
         NavigationStack {
-            List(workouts) { workout in
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: workout.icon)
-                            .font(.title2)
-                            .foregroundStyle(.blue)
-                            .frame(width: 36)
-                        VStack(alignment: .leading) {
-                            Text(workout.title)
-                                .font(.headline)
-                            Text(workout.scheduledDate, style: .date)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
+            Group {
+                if nextWorkouts.isEmpty {
+                    ContentUnavailableView(
+                        "No Workouts Scheduled",
+                        systemImage: "calendar.badge.plus",
+                        description: Text("Check back after chatting with Coach!")
+                    )
+                } else {
+                    List(nextWorkouts) { workout in
+                        WorkoutCard(workout: workout) {
+                            completionDate = .now
+                            completionDuration = Double(workout.totalDistance) / 50.0
+                            completingWorkout = workout
                         }
                     }
-
-                    Text(workout.description)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
-                    HStack(spacing: 16) {
-                        Label("\(workout.targetDistance)m", systemImage: "arrow.left.and.right")
-                        Label("\(workout.targetDuration) min", systemImage: "clock")
-                    }
-                    .font(.caption.bold())
-                    .foregroundStyle(.blue)
+                    .listStyle(.plain)
                 }
-                .padding(.vertical, 8)
             }
             .navigationTitle("Upcoming")
             .toolbar {
+                if upcomingWorkouts.isEmpty {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button {
+                            WorkoutSeeder.seedTestWorkouts(modelContext: modelContext)
+                        } label: {
+                            Label("Seed Test Data", systemImage: "testtube.2")
+                        }
+                    }
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         isDarkMode.toggle()
@@ -92,11 +56,158 @@ struct UpcomingView: View {
                     }
                 }
             }
+            .sheet(item: $completingWorkout) { workout in
+                NavigationStack {
+                    Form {
+                        Section("Session Details") {
+                            DatePicker("Date", selection: $completionDate, displayedComponents: .date)
+
+                            VStack(alignment: .leading) {
+                                Text("Duration: \(Int(completionDuration)) minutes")
+                                Slider(value: $completionDuration, in: 5...180, step: 5)
+                            }
+                        }
+                    }
+                    .navigationTitle("Complete Workout")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button("Cancel") {
+                                completingWorkout = nil
+                            }
+                        }
+                        ToolbarItem(placement: .confirmationAction) {
+                            Button("Save") {
+                                markCompleted(workout, date: completionDate, duration: completionDuration)
+                                completingWorkout = nil
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func markCompleted(_ workout: Workout, date: Date, duration: Double) {
+        workout.isCompleted = true
+        workout.completedDate = date
+
+        // Log as a SwimSession for Dashboard/history
+        let difficulty = parseDifficulty(from: workout.effortLevel)
+        let session = SwimSession(
+            date: date,
+            distance: Double(workout.totalDistance),
+            duration: duration,
+            notes: "\(workout.title) — \(workout.focus)",
+            difficulty: difficulty
+        )
+        modelContext.insert(session)
+    }
+
+    private func parseDifficulty(from effortLevel: String) -> Int {
+        let digits = effortLevel.compactMap { $0.wholeNumberValue }
+        return digits.max() ?? 5
+    }
+}
+
+struct WorkoutCard: View {
+    let workout: Workout
+    let onComplete: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            // Header
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(workout.title)
+                        .font(.headline)
+                    Text(workout.scheduledDate, style: .date)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                Button {
+                    onComplete()
+                } label: {
+                    Image(systemName: "checkmark.circle")
+                        .font(.title2)
+                        .foregroundStyle(.green)
+                }
+                .buttonStyle(.plain)
+            }
+
+            // Stats row
+            HStack(spacing: 16) {
+                Label("\(workout.totalDistance)m", systemImage: "arrow.left.and.right")
+                Label(workout.focus, systemImage: "target")
+                Label(workout.effortLevel, systemImage: "flame.fill")
+            }
+            .font(.caption.bold())
+            .foregroundStyle(.blue)
+
+            // Sets
+            if !workout.sets.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(workout.sets) { set in
+                        SetRow(set: set)
+                    }
+                }
+            }
+
+            // Notes
+            if let notes = workout.notes, !notes.isEmpty {
+                Text(notes)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .italic()
+            }
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+struct SetRow: View {
+    let set: WorkoutSet
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text(set.type)
+                .font(.caption.bold())
+                .foregroundStyle(.white)
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(colorForType(set.type), in: Capsule())
+
+            Text("\(set.reps)\u{00D7}\(set.distance)m")
+                .font(.caption.monospaced())
+
+            if set.rest > 0 {
+                Text("(rest: \(set.rest)s)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            Text("- \(set.instructions)")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+        }
+    }
+
+    private func colorForType(_ type: String) -> Color {
+        switch type {
+        case "Warm-up": return .orange
+        case "KICK": return .green
+        case "PULL": return .purple
+        case "Main": return .blue
+        case "Anaerobic": return .red
+        case "Open Water": return .teal
+        default: return .gray
         }
     }
 }
 
 #Preview {
     UpcomingView(isDarkMode: .constant(false))
-        .modelContainer(for: SwimSession.self, inMemory: true)
+        .modelContainer(for: [SwimSession.self, Workout.self], inMemory: true)
 }

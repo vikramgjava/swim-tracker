@@ -7,6 +7,6 @@ struct SwimTrackerApp: App {
         WindowGroup {
             ContentView()
         }
-        .modelContainer(for: [SwimSession.self, ChatMessage.self])
+        .modelContainer(for: [SwimSession.self, ChatMessage.self, Workout.self])
     }
 }
