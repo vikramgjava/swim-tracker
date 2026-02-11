@@ -9,6 +9,7 @@ struct SessionDetailView: View {
 
     @State private var isEditing = false
     @State private var showDeleteConfirmation = false
+    @State private var linkedWorkout: Workout?
 
     // Edit state
     @State private var editDate: Date = .now
@@ -16,6 +17,34 @@ struct SessionDetailView: View {
     @State private var editDuration: Double = 0
     @State private var editDifficulty: Int = 5
     @State private var editNotes: String = ""
+
+    private var pacePerHundred: String {
+        guard session.distance > 0 else { return "--" }
+        let totalSeconds = (session.duration * 60) / (session.distance / 100)
+        let minutes = Int(totalSeconds) / 60
+        let seconds = Int(totalSeconds) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private var shareSummary: String {
+        var text = """
+        Swim Session — \(session.date.formatted(date: .abbreviated, time: .omitted))
+        Distance: \(Int(session.distance))m
+        Duration: \(Int(session.duration)) min
+        Pace: \(pacePerHundred) / 100m
+        Difficulty: \(session.difficulty)/10
+        """
+        if !session.notes.isEmpty {
+            text += "\nNotes: \(session.notes)"
+        }
+        if let workout = linkedWorkout {
+            text += "\n\nWorkout: \(workout.title) (\(workout.focus))"
+            for set in workout.sets {
+                text += "\n  \(set.type): \(set.reps)\u{00D7}\(set.distance)m (rest: \(set.rest)s)"
+            }
+        }
+        return text
+    }
 
     var body: some View {
         Form {
@@ -64,6 +93,9 @@ struct SessionDetailView: View {
         } message: {
             Text("This session will be permanently removed.")
         }
+        .onAppear {
+            loadLinkedWorkout()
+        }
     }
 
     // MARK: - Read Mode
@@ -80,14 +112,39 @@ struct SessionDetailView: View {
             LabeledContent("Duration") {
                 Text("\(Int(session.duration)) minutes")
             }
+            LabeledContent("Pace per 100m") {
+                Text(pacePerHundred)
+                    .monospacedDigit()
+            }
             LabeledContent("Difficulty") {
-                Text("\(session.difficulty) / 10")
+                DifficultyIndicator(level: session.difficulty)
             }
         }
 
         if !session.notes.isEmpty {
             Section("Notes") {
                 Text(session.notes)
+            }
+        }
+
+        if let workout = linkedWorkout {
+            Section("Workout: \(workout.title)") {
+                LabeledContent("Focus") {
+                    Text(workout.focus)
+                }
+                LabeledContent("Effort") {
+                    Text(workout.effortLevel)
+                }
+                ForEach(workout.sets) { set in
+                    SetRow(set: set)
+                }
+            }
+        }
+
+        Section {
+            ShareLink(item: shareSummary) {
+                Label("Share Swim Summary", systemImage: "square.and.arrow.up")
+                    .frame(maxWidth: .infinity)
             }
         }
     }
@@ -149,6 +206,39 @@ struct SessionDetailView: View {
         modelContext.delete(session)
         dismiss()
     }
+
+    private func loadLinkedWorkout() {
+        guard let workoutIdString = session.workoutId,
+              let uuid = UUID(uuidString: workoutIdString) else { return }
+        let predicate = #Predicate<Workout> { $0.id == uuid }
+        let descriptor = FetchDescriptor<Workout>(predicate: predicate)
+        linkedWorkout = try? modelContext.fetch(descriptor).first
+    }
+}
+
+// MARK: - Difficulty Indicator
+
+struct DifficultyIndicator: View {
+    let level: Int
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(1...10, id: \.self) { i in
+                Circle()
+                    .fill(i <= level ? colorForLevel(i) : Color(.systemGray4))
+                    .frame(width: 10, height: 10)
+            }
+        }
+    }
+
+    private func colorForLevel(_ i: Int) -> Color {
+        switch i {
+        case 1...3: return .green
+        case 4...6: return .yellow
+        case 7...8: return .orange
+        default: return .red
+        }
+    }
 }
 
 #Preview {
@@ -161,5 +251,5 @@ struct SessionDetailView: View {
             difficulty: 7
         ))
     }
-    .modelContainer(for: SwimSession.self, inMemory: true)
+    .modelContainer(for: [SwimSession.self, Workout.self], inMemory: true)
 }
