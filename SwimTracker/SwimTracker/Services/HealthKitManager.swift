@@ -35,14 +35,20 @@ class HealthKitManager {
         }
     }
 
+    /// Convenience: fetch swim workouts from a start date to now
     func fetchRecentSwimWorkouts(since startDate: Date) async {
+        await fetchSwimWorkouts(from: startDate, to: .now)
+    }
+
+    /// Fetch swim workouts within a date range and store in recentSwimWorkouts
+    func fetchSwimWorkouts(from startDate: Date, to endDate: Date) async {
         guard isAvailable else { return }
 
         isLoading = true
         defer { isLoading = false }
 
         let workoutType = HKWorkoutType.workoutType()
-        let datePredicate = HKQuery.predicateForSamples(withStart: startDate, end: .now, options: .strictStartDate)
+        let datePredicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
         let activityPredicate = HKQuery.predicateForWorkouts(with: .swimming)
         let compound = NSCompoundPredicate(andPredicateWithSubpredicates: [datePredicate, activityPredicate])
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
@@ -134,6 +140,7 @@ class HealthKitManager {
                 sets: [set],
                 totalDistance: totalDist,
                 totalDuration: duration,
+                longestContinuousDistance: totalDist,
                 averagePace: pace,
                 averageHeartRate: avgHR,
                 maxHeartRate: maxHR
@@ -222,10 +229,13 @@ class HealthKitManager {
         let avgHR = allHRValues.isEmpty ? nil : allHRValues.reduce(0, +) / allHRValues.count
         let maxHR = allHRValues.max()
 
+        let longestContinuousDistance = sets.map(\.totalDistance).max() ?? totalDistance
+
         return WorkoutDetailedData(
             sets: sets,
             totalDistance: totalDistance,
             totalDuration: totalDuration,
+            longestContinuousDistance: longestContinuousDistance,
             averageSWOLF: avgSWOLF,
             averagePace: avgPace,
             averageHeartRate: avgHR,

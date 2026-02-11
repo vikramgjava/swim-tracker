@@ -29,6 +29,7 @@ struct WorkoutDetailedData: Codable {
     var sets: [SwimSet]
     var totalDistance: Double
     var totalDuration: TimeInterval
+    var longestContinuousDistance: Double // longest single set distance (no rest)
     var averageSWOLF: Double?
     var averagePace: Double?        // minutes per 100m
     var averageHeartRate: Int?
@@ -45,6 +46,11 @@ final class SwimSession {
     var workoutId: String? // UUID string linking to source Workout
     var healthKitId: String? // HKWorkout UUID to prevent duplicate imports
     var detailedDataJSON: String? // JSON-encoded WorkoutDetailedData
+
+    /// Longest continuous swim distance (no rest). Uses detailed set data if available, falls back to total session distance.
+    var longestContinuousDistance: Double {
+        detailedData?.longestContinuousDistance ?? distance
+    }
 
     var detailedData: WorkoutDetailedData? {
         get {

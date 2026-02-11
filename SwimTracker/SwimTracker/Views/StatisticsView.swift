@@ -96,19 +96,32 @@ struct StatisticsView: View {
 
     private var goalProgressSection: some View {
         let goalDistance = 3000.0
-        let longestSwim = sessions.map(\.distance).max() ?? 0
-        let progress = min(longestSwim / goalDistance, 1.0)
+        let longestContinuousSwim = sessions.map(\.longestContinuousDistance).max() ?? 0
+        let progress = min(longestContinuousSwim / goalDistance, 1.0)
 
-        // Estimate completion: linear extrapolation from first to current longest
-        let sortedByDistance = sessions.sorted { $0.distance < $1.distance }
+        // Estimate completion: linear extrapolation from progression of longest continuous swims
+        let sortedByDate = sessions.sorted { $0.date < $1.date }
+        // Build running max of longest continuous distance over time
+        let progressionPoints: [(date: Date, best: Double)] = {
+            var runningMax = 0.0
+            return sortedByDate.compactMap { session in
+                let continuous = session.longestContinuousDistance
+                if continuous > runningMax {
+                    runningMax = continuous
+                    return (date: session.date, best: runningMax)
+                }
+                return nil
+            }
+        }()
+
         let estimatedCompletion: String = {
-            guard sessions.count >= 2 else { return "Need more data" }
-            let first = sortedByDistance.first!
-            let last = sortedByDistance.last!
+            guard progressionPoints.count >= 2 else { return "Need more data" }
+            let first = progressionPoints.first!
+            let last = progressionPoints.last!
             let daysBetween = max(last.date.timeIntervalSince(first.date) / 86400, 1)
-            let distanceGain = last.distance - first.distance
+            let distanceGain = last.best - first.best
             guard distanceGain > 0 else { return "Need more data" }
-            let remaining = goalDistance - longestSwim
+            let remaining = goalDistance - longestContinuousSwim
             let daysNeeded = remaining / (distanceGain / daysBetween)
             let estimatedDate = Calendar.current.date(byAdding: .day, value: Int(daysNeeded), to: .now)
             return estimatedDate?.formatted(date: .abbreviated, time: .omitted) ?? "N/A"
@@ -116,11 +129,13 @@ struct StatisticsView: View {
 
         let isOnTrack: Bool = {
             let deadline = Calendar.current.date(from: DateComponents(year: 2026, month: 8, day: 30)) ?? .now
-            guard sessions.count >= 2, let first = sortedByDistance.first, let last = sortedByDistance.last else { return false }
+            guard progressionPoints.count >= 2 else { return false }
+            let first = progressionPoints.first!
+            let last = progressionPoints.last!
             let daysBetween = max(last.date.timeIntervalSince(first.date) / 86400, 1)
-            let distanceGain = last.distance - first.distance
+            let distanceGain = last.best - first.best
             guard distanceGain > 0 else { return false }
-            let remaining = goalDistance - longestSwim
+            let remaining = goalDistance - longestContinuousSwim
             let daysNeeded = remaining / (distanceGain / daysBetween)
             let estimatedDate = Calendar.current.date(byAdding: .day, value: Int(daysNeeded), to: .now) ?? .distantFuture
             return estimatedDate <= deadline
@@ -140,7 +155,7 @@ struct StatisticsView: View {
                     VStack(spacing: 4) {
                         Text("\(Int(progress * 100))%")
                             .font(.title.bold())
-                        Text("\(Int(longestSwim))m / \(Int(goalDistance))m")
+                        Text("\(Int(longestContinuousSwim))m / \(Int(goalDistance))m")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -151,10 +166,10 @@ struct StatisticsView: View {
 
                 HStack(spacing: 24) {
                     VStack(spacing: 4) {
-                        Text("Longest Swim")
+                        Text("Longest Continuous")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("\(Int(longestSwim))m")
+                        Text("\(Int(longestContinuousSwim))m")
                             .font(.subheadline.bold())
                     }
                     VStack(spacing: 4) {
@@ -560,9 +575,9 @@ struct StatisticsView: View {
                                 .font(.subheadline.bold())
                         }
                     }
-                    if let longest = sessions.map(\.distance).max() {
+                    if let longest = sessions.map(\.longestContinuousDistance).max() {
                         VStack(spacing: 4) {
-                            Text("Longest Swim")
+                            Text("Longest Continuous")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                             Text("\(Int(longest))m")

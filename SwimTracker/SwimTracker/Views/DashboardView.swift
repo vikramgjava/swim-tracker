@@ -44,6 +44,24 @@ func formatPace(_ minutesPer100m: Double) -> String {
     return String(format: "%d:%02d", minutes, seconds)
 }
 
+// MARK: - Import Date Range
+
+enum ImportDateRange: String, CaseIterable {
+    case last7 = "Last 7 Days"
+    case last30 = "Last 30 Days"
+    case since2026 = "Since January 2026"
+    case allTime = "All Time"
+
+    var startDate: Date {
+        switch self {
+        case .last7: return Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .now
+        case .last30: return Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
+        case .since2026: return Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1)) ?? .now
+        case .allTime: return Calendar.current.date(from: DateComponents(year: 2015, month: 1, day: 1)) ?? .now
+        }
+    }
+}
+
 // MARK: - DashboardView
 
 struct DashboardView: View {
@@ -66,14 +84,12 @@ struct DashboardView: View {
         return sessions.filter { $0.date >= startOfMonth }.reduce(0) { $0 + $1.distance }
     }
 
-    private var unimportedWorkouts: [HKWorkoutProxy] {
-        let importedIds = Set(sessions.compactMap(\.healthKitId))
-        return healthKitManager.recentSwimWorkouts.compactMap { workout in
-            let id = workout.uuid.uuidString
-            guard !importedIds.contains(id) else { return nil }
-            let data = healthKitManager.extractWorkoutData(workout: workout)
-            return HKWorkoutProxy(id: id, workout: workout, distance: data.distance, duration: data.duration, date: data.date)
-        }
+    private var importedIds: Set<String> {
+        Set(sessions.compactMap(\.healthKitId))
+    }
+
+    private var unimportedCount: Int {
+        healthKitManager.recentSwimWorkouts.filter { !importedIds.contains($0.uuid.uuidString) }.count
     }
 
     var body: some View {
@@ -81,14 +97,14 @@ struct DashboardView: View {
             ScrollView {
                 VStack(spacing: 20) {
                     // HealthKit import banner
-                    if healthKitEnabled && !unimportedWorkouts.isEmpty {
+                    if healthKitEnabled && unimportedCount > 0 {
                         Button {
                             showingHealthKitImport = true
                         } label: {
                             HStack {
                                 Image(systemName: "heart.fill")
                                     .foregroundStyle(.red)
-                                Text("Found \(unimportedWorkouts.count) swim workout\(unimportedWorkouts.count == 1 ? "" : "s") — Tap to import")
+                                Text("Found \(unimportedCount) swim workout\(unimportedCount == 1 ? "" : "s") — Tap to import")
                                     .font(.subheadline.bold())
                                 Spacer()
                                 Image(systemName: "chevron.right")
@@ -182,16 +198,13 @@ struct DashboardView: View {
                 LogSwimView(isDarkMode: $isDarkMode)
             }
             .sheet(isPresented: $showingHealthKitImport) {
-                HealthKitImportSheet(
-                    healthKitManager: healthKitManager,
-                    unimportedWorkouts: unimportedWorkouts
-                )
+                HealthKitImportSheet(healthKitManager: healthKitManager)
             }
             .task {
                 if healthKitEnabled {
                     await healthKitManager.requestAuthorization()
-                    let thirtyDaysAgo = Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
-                    await healthKitManager.fetchRecentSwimWorkouts(since: thirtyDaysAgo)
+                    let jan2026 = ImportDateRange.since2026.startDate
+                    await healthKitManager.fetchSwimWorkouts(from: jan2026, to: .now)
                 }
             }
         }
@@ -216,10 +229,11 @@ struct HealthKitImportSheet: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
     var healthKitManager: HealthKitManager
-    let unimportedWorkouts: [HKWorkoutProxy]
 
+    @Query(sort: \SwimSession.date, order: .reverse) private var sessions: [SwimSession]
     @Query(sort: \Workout.scheduledDate) private var upcomingWorkouts: [Workout]
 
+    @State private var dateRange: ImportDateRange = .last7
     @State private var selectedWorkout: HKWorkoutProxy?
     @State private var importDifficulty: Int = 5
     @State private var importNotes: String = ""
@@ -228,13 +242,34 @@ struct HealthKitImportSheet: View {
     @State private var isLoadingDetails = false
     @State private var showImportSuccess = false
 
+    // Bulk import state
+    @State private var showBulkConfirm = false
+    @State private var isBulkImporting = false
+    @State private var bulkImportProgress = 0
+    @State private var bulkImportTotal = 0
+    @State private var bulkImportDone = false
+    @State private var bulkImportedCount = 0
+
+    private var importedIds: Set<String> {
+        Set(sessions.compactMap(\.healthKitId))
+    }
+
+    private var unimportedWorkouts: [HKWorkoutProxy] {
+        healthKitManager.recentSwimWorkouts.compactMap { workout in
+            let id = workout.uuid.uuidString
+            guard !importedIds.contains(id) else { return nil }
+            let data = healthKitManager.extractWorkoutData(workout: workout)
+            return HKWorkoutProxy(id: id, workout: workout, distance: data.distance, duration: data.duration, date: data.date)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Group {
                 if let selected = selectedWorkout {
                     importForm(for: selected)
                 } else {
-                    workoutList
+                    workoutListView
                 }
             }
             .navigationTitle(selectedWorkout == nil ? "Import Workouts" : "Import Details")
@@ -243,56 +278,146 @@ struct HealthKitImportSheet: View {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(selectedWorkout == nil ? "Done" : "Back") {
                         if selectedWorkout != nil {
-                            selectedWorkout = nil
-                            detailedData = nil
-                            importDifficulty = 5
-                            importNotes = ""
-                            linkedWorkoutId = nil
+                            resetSingleImportState()
                         } else {
                             dismiss()
                         }
                     }
+                    .disabled(isBulkImporting)
                 }
             }
             .alert("Workout Imported!", isPresented: $showImportSuccess) {
                 Button("OK") {
-                    selectedWorkout = nil
-                    detailedData = nil
-                    importDifficulty = 5
-                    importNotes = ""
-                    linkedWorkoutId = nil
+                    resetSingleImportState()
+                }
+            }
+            .alert("Import \(unimportedWorkouts.count) workouts?", isPresented: $showBulkConfirm) {
+                Button("Import All", role: .none) {
+                    startBulkImport()
+                }
+                Button("Cancel", role: .cancel) { }
+            } message: {
+                Text("This will import \(unimportedWorkouts.count) swim workouts from Apple Health with detailed lap data. This may take a moment.")
+            }
+            .alert("Import Complete", isPresented: $bulkImportDone) {
+                Button("OK") {
                     if unimportedWorkouts.isEmpty {
                         dismiss()
                     }
                 }
+            } message: {
+                Text("Successfully imported \(bulkImportedCount) workout\(bulkImportedCount == 1 ? "" : "s").")
             }
         }
         .presentationDetents([.large])
-    }
-
-    private var workoutList: some View {
-        List(unimportedWorkouts) { proxy in
-            Button {
-                selectedWorkout = proxy
-                loadDetails(for: proxy)
-            } label: {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(proxy.date, style: .date)
-                            .font(.subheadline.bold())
-                        Text("\(Int(proxy.distance))m · \(Int(proxy.duration)) min")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+        .onChange(of: dateRange) { _, newRange in
+            Task {
+                await healthKitManager.fetchSwimWorkouts(from: newRange.startDate, to: .now)
             }
-            .buttonStyle(.plain)
         }
     }
+
+    // MARK: - Workout List View
+
+    private var workoutListView: some View {
+        List {
+            // Date range picker
+            Section {
+                Picker("Show workouts from:", selection: $dateRange) {
+                    ForEach(ImportDateRange.allCases, id: \.self) { range in
+                        Text(range.rawValue).tag(range)
+                    }
+                }
+            }
+
+            if healthKitManager.isLoading {
+                Section {
+                    HStack {
+                        ProgressView()
+                        Text("Loading workouts...")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            } else if isBulkImporting {
+                Section {
+                    VStack(spacing: 12) {
+                        ProgressView(value: Double(bulkImportProgress), total: Double(bulkImportTotal)) {
+                            Text("Importing workouts...")
+                                .font(.subheadline.bold())
+                        } currentValueLabel: {
+                            Text("\(bulkImportProgress) of \(bulkImportTotal)")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                }
+            } else if unimportedWorkouts.isEmpty {
+                Section {
+                    HStack {
+                        Spacer()
+                        VStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.title)
+                                .foregroundStyle(.green)
+                            Text("All workouts imported!")
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 16)
+                }
+            } else {
+                // Bulk import button
+                Section {
+                    Button {
+                        showBulkConfirm = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "square.and.arrow.down.on.square.fill")
+                            Text("Import All (\(unimportedWorkouts.count))")
+                                .font(.subheadline.bold())
+                            Spacer()
+                            if unimportedWorkouts.count > 50 {
+                                Text("First 50")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                    }
+                }
+
+                // Individual workouts
+                Section("\(unimportedWorkouts.count) Unimported Workouts") {
+                    ForEach(unimportedWorkouts) { proxy in
+                        Button {
+                            selectedWorkout = proxy
+                            loadDetails(for: proxy)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(proxy.date, style: .date)
+                                        .font(.subheadline.bold())
+                                    Text("\(Int(proxy.distance))m · \(Int(proxy.duration)) min")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: - Import Form (single workout)
 
     private func importForm(for proxy: HKWorkoutProxy) -> some View {
         Form {
@@ -386,7 +511,7 @@ struct HealthKitImportSheet: View {
 
             Section {
                 Button {
-                    importWorkout(proxy: proxy)
+                    importSingleWorkout(proxy: proxy)
                 } label: {
                     Label("Import Workout", systemImage: "square.and.arrow.down.fill")
                         .frame(maxWidth: .infinity)
@@ -399,6 +524,16 @@ struct HealthKitImportSheet: View {
         }
     }
 
+    // MARK: - Actions
+
+    private func resetSingleImportState() {
+        selectedWorkout = nil
+        detailedData = nil
+        importDifficulty = 5
+        importNotes = ""
+        linkedWorkoutId = nil
+    }
+
     private func loadDetails(for proxy: HKWorkoutProxy) {
         isLoadingDetails = true
         Task {
@@ -407,7 +542,7 @@ struct HealthKitImportSheet: View {
         }
     }
 
-    private func importWorkout(proxy: HKWorkoutProxy) {
+    private func importSingleWorkout(proxy: HKWorkoutProxy) {
         let session = SwimSession(
             date: proxy.date,
             distance: proxy.distance,
@@ -420,6 +555,46 @@ struct HealthKitImportSheet: View {
         )
         modelContext.insert(session)
         showImportSuccess = true
+    }
+
+    private func startBulkImport() {
+        // Limit to 50 at a time
+        let workoutsToImport = Array(unimportedWorkouts.prefix(50))
+        guard !workoutsToImport.isEmpty else { return }
+
+        isBulkImporting = true
+        bulkImportProgress = 0
+        bulkImportTotal = workoutsToImport.count
+        bulkImportedCount = 0
+
+        Task {
+            for proxy in workoutsToImport {
+                // Double-check not already imported (could race with SwiftData updates)
+                guard !importedIds.contains(proxy.id) else {
+                    bulkImportProgress += 1
+                    continue
+                }
+
+                // Fetch detailed data for this workout
+                let details = await healthKitManager.fetchWorkoutDetails(for: proxy.workout)
+
+                let session = SwimSession(
+                    date: proxy.date,
+                    distance: proxy.distance,
+                    duration: proxy.duration,
+                    notes: "",
+                    difficulty: 5,
+                    healthKitId: proxy.id,
+                    detailedData: details
+                )
+                modelContext.insert(session)
+                bulkImportedCount += 1
+                bulkImportProgress += 1
+            }
+
+            isBulkImporting = false
+            bulkImportDone = true
+        }
     }
 }
 
