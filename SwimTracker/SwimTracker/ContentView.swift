@@ -10,11 +10,6 @@ struct ContentView: View {
                     Label("Dashboard", systemImage: "chart.bar.fill")
                 }
 
-            LogSwimView(isDarkMode: $isDarkMode)
-                .tabItem {
-                    Label("Log Swim", systemImage: "plus.circle.fill")
-                }
-
             UpcomingView(isDarkMode: $isDarkMode)
                 .tabItem {
                     Label("Upcoming", systemImage: "calendar")

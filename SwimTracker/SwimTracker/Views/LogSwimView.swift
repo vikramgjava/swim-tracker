@@ -4,6 +4,7 @@ import SwiftData
 struct LogSwimView: View {
     @Binding var isDarkMode: Bool
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.dismiss) private var dismiss
 
     @State private var date = Date.now
     @State private var distance: Double = 500
@@ -56,17 +57,14 @@ struct LogSwimView: View {
                 }
             }
             .navigationTitle("Log Swim")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isDarkMode.toggle()
-                    } label: {
-                        Image(systemName: isDarkMode ? "sun.max.fill" : "moon.fill")
-                    }
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
                 }
             }
             .alert("Swim Logged!", isPresented: $showConfirmation) {
-                Button("OK") { }
+                Button("OK") { dismiss() }
             } message: {
                 Text("Your \(savedDistance)m swim has been saved.")
             }

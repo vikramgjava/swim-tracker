@@ -9,6 +9,7 @@ struct SessionDetailView: View {
 
     @State private var isEditing = false
     @State private var showDeleteConfirmation = false
+    @State private var linkedWorkout: Workout?
 
     // Edit state
     @State private var editDate: Date = .now
@@ -16,6 +17,34 @@ struct SessionDetailView: View {
     @State private var editDuration: Double = 0
     @State private var editDifficulty: Int = 5
     @State private var editNotes: String = ""
+
+    private var pacePerHundred: String {
+        guard session.distance > 0 else { return "--" }
+        let totalSeconds = (session.duration * 60) / (session.distance / 100)
+        let minutes = Int(totalSeconds) / 60
+        let seconds = Int(totalSeconds) % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+
+    private var shareSummary: String {
+        var text = """
+        Swim Session — \(session.date.formatted(date: .abbreviated, time: .omitted))
+        Distance: \(Int(session.distance))m
+        Duration: \(Int(session.duration)) min
+        Pace: \(pacePerHundred) / 100m
+        Difficulty: \(session.difficulty)/10
+        """
+        if !session.notes.isEmpty {
+            text += "\nNotes: \(session.notes)"
+        }
+        if let workout = linkedWorkout {
+            text += "\n\nWorkout: \(workout.title) (\(workout.focus))"
+            for set in workout.sets {
+                text += "\n  \(set.type): \(set.reps)\u{00D7}\(set.distance)m (rest: \(set.rest)s)"
+            }
+        }
+        return text
+    }
 
     var body: some View {
         Form {
@@ -64,6 +93,9 @@ struct SessionDetailView: View {
         } message: {
             Text("This session will be permanently removed.")
         }
+        .onAppear {
+            loadLinkedWorkout()
+        }
     }
 
     // MARK: - Read Mode
@@ -80,14 +112,212 @@ struct SessionDetailView: View {
             LabeledContent("Duration") {
                 Text("\(Int(session.duration)) minutes")
             }
+            LabeledContent("Pace per 100m") {
+                Text(pacePerHundred)
+                    .monospacedDigit()
+            }
             LabeledContent("Difficulty") {
-                Text("\(session.difficulty) / 10")
+                DifficultyIndicator(level: session.difficulty)
+            }
+            if session.healthKitId != nil {
+                LabeledContent("Source") {
+                    HStack(spacing: 4) {
+                        Image(systemName: "applewatch")
+                        Text("Apple Watch")
+                    }
+                    .foregroundStyle(.blue)
+                    .font(.caption)
+                }
+            }
+        }
+
+        // Workout Summary (from HealthKit detailed data)
+        if let data = session.detailedData {
+            Section("Workout Summary") {
+                if let swolf = data.averageSWOLF {
+                    LabeledContent("Avg SWOLF") {
+                        HStack(spacing: 4) {
+                            Text("\(Int(swolf))")
+                                .bold()
+                            Text("(\(swolfLabel(Int(swolf))))")
+                                .font(.caption)
+                        }
+                        .foregroundStyle(swolfColor(Int(swolf)))
+                    }
+                } else {
+                    LabeledContent("Avg SWOLF") { Text("N/A").foregroundStyle(.secondary) }
+                }
+
+                if let pace = data.averagePace {
+                    LabeledContent("Avg Pace") {
+                        Text("\(formatPace(pace)) /100m")
+                            .monospacedDigit()
+                    }
+                } else {
+                    LabeledContent("Avg Pace") { Text("N/A").foregroundStyle(.secondary) }
+                }
+
+                if let hr = data.averageHeartRate {
+                    LabeledContent("Avg HR") {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(hrZoneColor(hr))
+                                .frame(width: 8, height: 8)
+                            Text("\(hr) bpm")
+                            Text("(\(hrZoneLabel(hr)))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else {
+                    LabeledContent("Avg HR") { Text("N/A").foregroundStyle(.secondary) }
+                }
+
+                if let maxHR = data.maxHeartRate {
+                    LabeledContent("Max HR") {
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(hrZoneColor(maxHR))
+                                .frame(width: 8, height: 8)
+                            Text("\(maxHR) bpm")
+                            Text("(\(hrZoneLabel(maxHR)))")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                } else {
+                    LabeledContent("Max HR") { Text("N/A").foregroundStyle(.secondary) }
+                }
+            }
+
+            // Sets breakdown
+            Section("Sets") {
+                ForEach(Array(data.sets.enumerated()), id: \.offset) { index, set in
+                    DisclosureGroup {
+                        // Lap-by-lap breakdown
+                        ForEach(Array(set.laps.enumerated()), id: \.offset) { lapIndex, lap in
+                            VStack(alignment: .leading, spacing: 4) {
+                                HStack(spacing: 8) {
+                                    Text("Lap \(lapIndex + 1)")
+                                        .font(.caption.bold())
+                                        .frame(width: 48, alignment: .leading)
+                                    Text("\(Int(lap.distance))m")
+                                        .font(.caption)
+                                    Text(formatLapDuration(lap.duration))
+                                        .font(.caption.monospacedDigit())
+
+                                    if let swolf = lap.swolf {
+                                        Text("SWOLF \(swolf)")
+                                            .font(.caption2)
+                                            .padding(.horizontal, 4)
+                                            .padding(.vertical, 1)
+                                            .background(swolfColor(swolf).opacity(0.2), in: Capsule())
+                                            .foregroundStyle(swolfColor(swolf))
+                                    }
+
+                                    Spacer()
+
+                                    if let hr = lap.heartRate {
+                                        HStack(spacing: 2) {
+                                            Circle()
+                                                .fill(hrZoneColor(hr))
+                                                .frame(width: 6, height: 6)
+                                            Text("\(hr)")
+                                                .font(.caption2)
+                                        }
+                                    }
+                                }
+
+                                HStack(spacing: 8) {
+                                    if let pace = lap.pace {
+                                        Text("\(formatPace(pace))/100m")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let stroke = lap.strokeType {
+                                        Text(stroke)
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    if let count = lap.strokeCount {
+                                        Text("\(count) strokes")
+                                            .font(.caption2)
+                                            .foregroundStyle(.secondary)
+                                    }
+                                }
+                            }
+                            .padding(.vertical, 2)
+                        }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            HStack {
+                                Text("Set \(index + 1): \(Int(set.totalDistance))m")
+                                    .font(.subheadline.bold())
+                                Text("· \(set.laps.count) laps")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                if set.restAfter > 0 {
+                                    Text("· rest \(Int(set.restAfter))s")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            HStack(spacing: 12) {
+                                Text(set.strokeType)
+                                    .font(.caption2)
+                                    .padding(.horizontal, 6)
+                                    .padding(.vertical, 2)
+                                    .background(.blue.opacity(0.1), in: Capsule())
+                                if let swolf = set.averageSWOLF {
+                                    Text("SWOLF \(Int(swolf))")
+                                        .font(.caption2)
+                                        .foregroundStyle(swolfColor(Int(swolf)))
+                                }
+                                if let pace = set.averagePace {
+                                    Text("\(formatPace(pace))/100m")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                                if let hr = set.averageHeartRate {
+                                    HStack(spacing: 2) {
+                                        Circle()
+                                            .fill(hrZoneColor(hr))
+                                            .frame(width: 6, height: 6)
+                                        Text("\(hr) bpm")
+                                            .font(.caption2)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
 
         if !session.notes.isEmpty {
             Section("Notes") {
                 Text(session.notes)
+            }
+        }
+
+        if let workout = linkedWorkout {
+            Section("Workout: \(workout.title)") {
+                LabeledContent("Focus") {
+                    Text(workout.focus)
+                }
+                LabeledContent("Effort") {
+                    Text(workout.effortLevel)
+                }
+                ForEach(workout.sets) { set in
+                    SetRow(set: set)
+                }
+            }
+        }
+
+        Section {
+            ShareLink(item: shareSummary) {
+                Label("Share Swim Summary", systemImage: "square.and.arrow.up")
+                    .frame(maxWidth: .infinity)
             }
         }
     }
@@ -125,6 +355,14 @@ struct SessionDetailView: View {
         }
     }
 
+    // MARK: - Helpers
+
+    private func formatLapDuration(_ seconds: TimeInterval) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        return String(format: "%d:%02d", mins, secs)
+    }
+
     // MARK: - Actions
 
     private func startEditing() {
@@ -149,6 +387,39 @@ struct SessionDetailView: View {
         modelContext.delete(session)
         dismiss()
     }
+
+    private func loadLinkedWorkout() {
+        guard let workoutIdString = session.workoutId,
+              let uuid = UUID(uuidString: workoutIdString) else { return }
+        let predicate = #Predicate<Workout> { $0.id == uuid }
+        let descriptor = FetchDescriptor<Workout>(predicate: predicate)
+        linkedWorkout = try? modelContext.fetch(descriptor).first
+    }
+}
+
+// MARK: - Difficulty Indicator
+
+struct DifficultyIndicator: View {
+    let level: Int
+
+    var body: some View {
+        HStack(spacing: 3) {
+            ForEach(1...10, id: \.self) { i in
+                Circle()
+                    .fill(i <= level ? colorForLevel(i) : Color(.systemGray4))
+                    .frame(width: 10, height: 10)
+            }
+        }
+    }
+
+    private func colorForLevel(_ i: Int) -> Color {
+        switch i {
+        case 1...3: return .green
+        case 4...6: return .yellow
+        case 7...8: return .orange
+        default: return .red
+        }
+    }
 }
 
 #Preview {
@@ -161,5 +432,5 @@ struct SessionDetailView: View {
             difficulty: 7
         ))
     }
-    .modelContainer(for: SwimSession.self, inMemory: true)
+    .modelContainer(for: [SwimSession.self, Workout.self], inMemory: true)
 }

@@ -36,7 +36,7 @@ final class AnthropicService {
     ATHLETE BACKGROUND:
     - Started: January 2026 at 250m continuous swimming, 625m total per session
     - Current pace: 11-12 min/500m (mix of freestyle and breaststroke)
-    - Pool: 22 meters (1 lap = 2 lengths = 44m)
+    - Pool: 25 meters (1 lap = 2 lengths = 50m)
     - Training location: Mumbai, India until mid-February 2026, then California
     - Training frequency: 3 swims per week
       * 2 shorter weekday sessions (typically Mon/Wed or Tue/Thu)
