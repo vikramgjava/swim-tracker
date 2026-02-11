@@ -42,6 +42,7 @@ struct ChatView: View {
                     }
                     .padding(.vertical)
                 }
+                .scrollDismissesKeyboard(.interactively)
                 .onChange(of: messages.count) {
                     scrollToBottom(proxy: proxy)
                 }
@@ -107,7 +108,7 @@ struct ChatView: View {
                                 .onSubmit { sendMessage() }
                                 .padding(.horizontal, 12)
                                 .padding(.vertical, 8)
-                                .background(Color(.systemGray6), in: Capsule())
+                                .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 20))
 
                             Button {
                                 sendMessage()
