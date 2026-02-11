@@ -10,6 +10,11 @@ struct ContentView: View {
                     Label("Dashboard", systemImage: "chart.bar.fill")
                 }
 
+            StatisticsView(isDarkMode: $isDarkMode)
+                .tabItem {
+                    Label("Statistics", systemImage: "chart.xyaxis.line")
+                }
+
             UpcomingView(isDarkMode: $isDarkMode)
                 .tabItem {
                     Label("Upcoming", systemImage: "calendar")
