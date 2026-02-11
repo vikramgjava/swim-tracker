@@ -4,6 +4,7 @@ import SwiftData
 struct DashboardView: View {
     @Binding var isDarkMode: Bool
     @Query(sort: \SwimSession.date, order: .reverse) private var sessions: [SwimSession]
+    @State private var showingLogSwim = false
 
     private var weeklyDistance: Double {
         let calendar = Calendar.current
@@ -77,12 +78,22 @@ struct DashboardView: View {
             .navigationTitle("Dashboard")
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isDarkMode.toggle()
-                    } label: {
-                        Image(systemName: isDarkMode ? "sun.max.fill" : "moon.fill")
+                    HStack(spacing: 16) {
+                        Button {
+                            showingLogSwim = true
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                        }
+                        Button {
+                            isDarkMode.toggle()
+                        } label: {
+                            Image(systemName: isDarkMode ? "sun.max.fill" : "moon.fill")
+                        }
                     }
                 }
+            }
+            .sheet(isPresented: $showingLogSwim) {
+                LogSwimView(isDarkMode: $isDarkMode)
             }
         }
     }
