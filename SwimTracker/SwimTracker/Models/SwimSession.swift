@@ -29,11 +29,18 @@ struct WorkoutDetailedData: Codable {
     var sets: [SwimSet]
     var totalDistance: Double
     var totalDuration: TimeInterval
-    var longestContinuousDistance: Double // longest single set distance (no rest)
+    var longestContinuousDistance: Double? // longest single set distance (no rest); nil for legacy data
     var averageSWOLF: Double?
     var averagePace: Double?        // minutes per 100m
     var averageHeartRate: Int?
     var maxHeartRate: Int?
+
+    /// Computed longest continuous distance: uses stored value, or derives from sets, or falls back to totalDistance
+    var effectiveLongestContinuousDistance: Double {
+        if let stored = longestContinuousDistance { return stored }
+        let fromSets = sets.map(\.totalDistance).max()
+        return fromSets ?? totalDistance
+    }
 }
 
 @Model
@@ -49,7 +56,7 @@ final class SwimSession {
 
     /// Longest continuous swim distance (no rest). Uses detailed set data if available, falls back to total session distance.
     var longestContinuousDistance: Double {
-        detailedData?.longestContinuousDistance ?? distance
+        detailedData?.effectiveLongestContinuousDistance ?? distance
     }
 
     var detailedData: WorkoutDetailedData? {

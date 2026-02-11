@@ -70,6 +70,7 @@ struct DashboardView: View {
     @State private var showingLogSwim = false
     @State private var healthKitManager = HealthKitManager()
     @State private var showingHealthKitImport = false
+    @State private var selectedSession: SwimSession?
     @AppStorage("healthKitEnabled") private var healthKitEnabled = false
 
     private var weeklyDistance: Double {
@@ -96,6 +97,11 @@ struct DashboardView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 20) {
+                    // Goal Progress (hero element)
+                    if !sessions.isEmpty {
+                        goalProgressSection
+                    }
+
                     // HealthKit import banner
                     if healthKitEnabled && unimportedCount > 0 {
                         Button {
@@ -200,6 +206,16 @@ struct DashboardView: View {
             .sheet(isPresented: $showingHealthKitImport) {
                 HealthKitImportSheet(healthKitManager: healthKitManager)
             }
+            .sheet(item: $selectedSession) { session in
+                NavigationStack {
+                    SessionDetailView(session: session)
+                        .toolbar {
+                            ToolbarItem(placement: .cancellationAction) {
+                                Button("Done") { selectedSession = nil }
+                            }
+                        }
+                }
+            }
             .task {
                 if healthKitEnabled {
                     await healthKitManager.requestAuthorization()
@@ -208,6 +224,151 @@ struct DashboardView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Goal Progress
+
+    private var goalProgressSection: some View {
+        let goalDistance = 3000.0
+        let bestSession = sessions.max { $0.longestContinuousDistance < $1.longestContinuousDistance }
+        let longestContinuousSwim = bestSession?.longestContinuousDistance ?? 0
+        let progress = min(longestContinuousSwim / goalDistance, 1.0)
+        let _ = {
+            print("[Dashboard] Goal Progress: longestContinuousSwim=\(Int(longestContinuousSwim))m, progress=\(Int(progress * 100))%")
+        }()
+
+        // Estimate completion from progression of longest continuous swims
+        let sortedByDate = sessions.sorted { $0.date < $1.date }
+        let progressionPoints: [(date: Date, best: Double)] = {
+            var runningMax = 0.0
+            return sortedByDate.compactMap { session in
+                let continuous = session.longestContinuousDistance
+                if continuous > runningMax {
+                    runningMax = continuous
+                    return (date: session.date, best: runningMax)
+                }
+                return nil
+            }
+        }()
+
+        let estimatedCompletion: String = {
+            guard progressionPoints.count >= 2 else { return "Need more data" }
+            let first = progressionPoints.first!
+            let last = progressionPoints.last!
+            let daysBetween = max(last.date.timeIntervalSince(first.date) / 86400, 1)
+            let distanceGain = last.best - first.best
+            guard distanceGain > 0 else { return "Need more data" }
+            let remaining = goalDistance - longestContinuousSwim
+            let daysNeeded = remaining / (distanceGain / daysBetween)
+            let estimatedDate = Calendar.current.date(byAdding: .day, value: Int(daysNeeded), to: .now)
+            return estimatedDate?.formatted(date: .abbreviated, time: .omitted) ?? "N/A"
+        }()
+
+        let isOnTrack: Bool = {
+            let deadline = Calendar.current.date(from: DateComponents(year: 2026, month: 8, day: 30)) ?? .now
+            guard progressionPoints.count >= 2 else { return false }
+            let first = progressionPoints.first!
+            let last = progressionPoints.last!
+            let daysBetween = max(last.date.timeIntervalSince(first.date) / 86400, 1)
+            let distanceGain = last.best - first.best
+            guard distanceGain > 0 else { return false }
+            let remaining = goalDistance - longestContinuousSwim
+            let daysNeeded = remaining / (distanceGain / daysBetween)
+            let estimatedDate = Calendar.current.date(byAdding: .day, value: Int(daysNeeded), to: .now) ?? .distantFuture
+            return estimatedDate <= deadline
+        }()
+
+        return VStack(spacing: 16) {
+            HStack(spacing: 8) {
+                Image(systemName: "target")
+                    .foregroundStyle(.blue)
+                Text("Goal Progress")
+                    .font(.headline)
+                Spacer()
+            }
+
+            // Progress ring
+            ZStack {
+                Circle()
+                    .stroke(Color(.systemGray5), lineWidth: 12)
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(progress >= 1.0 ? Color.green : Color.blue, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeInOut, value: progress)
+                VStack(spacing: 4) {
+                    Text("\(Int(progress * 100))%")
+                        .font(.title.bold())
+                    Text("\(Int(longestContinuousSwim))m / \(Int(goalDistance))m")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .frame(width: 140, height: 140)
+
+            Divider()
+
+            HStack(spacing: 24) {
+                if let best = bestSession {
+                    Button {
+                        selectedSession = best
+                    } label: {
+                        VStack(spacing: 4) {
+                            Text("Longest Continuous")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("\(Int(longestContinuousSwim))m")
+                                .font(.subheadline.bold())
+                            HStack(spacing: 2) {
+                                Text(best.date, format: .dateTime.month(.abbreviated).day().year())
+                                    .font(.caption2)
+                                Image(systemName: "chevron.right")
+                                    .font(.caption2)
+                            }
+                            .foregroundStyle(.blue)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    VStack(spacing: 4) {
+                        Text("Longest Continuous")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Text("--")
+                            .font(.subheadline.bold())
+                    }
+                }
+                VStack(spacing: 4) {
+                    Text("Target")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text("\(Int(goalDistance))m")
+                        .font(.subheadline.bold())
+                }
+                VStack(spacing: 4) {
+                    Text("Est. Completion")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(estimatedCompletion)
+                        .font(.subheadline.bold())
+                }
+            }
+
+            // On track indicator
+            HStack(spacing: 6) {
+                Image(systemName: isOnTrack ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                    .foregroundStyle(isOnTrack ? .green : .orange)
+                Text(isOnTrack ? "On track for Aug 30, 2026" : "Need to accelerate training")
+                    .font(.caption.bold())
+                    .foregroundStyle(isOnTrack ? .green : .orange)
+            }
+            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .background((isOnTrack ? Color.green : Color.orange).opacity(0.1), in: Capsule())
+        }
+        .frame(maxWidth: .infinity)
+        .padding()
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
     }
 }
 

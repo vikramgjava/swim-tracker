@@ -61,12 +61,34 @@ struct StatisticsView: View {
                             .pickerStyle(.segmented)
                             .padding(.horizontal)
 
+                            // View All Sessions button
+                            NavigationLink {
+                                SessionHistoryView()
+                            } label: {
+                                HStack {
+                                    Image(systemName: "list.bullet.clipboard")
+                                        .foregroundStyle(.blue)
+                                    Text("View All Sessions")
+                                        .font(.subheadline.bold())
+                                    Spacer()
+                                    Text("\(allSessions.count) swims")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                    Image(systemName: "chevron.right")
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                }
+                                .padding()
+                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.horizontal)
+
                             if sessions.isEmpty {
                                 Text("No swims in this time period.")
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 40)
                             } else {
-                                goalProgressSection
                                 distanceTrendsSection
                                 if hasDetailedData { efficiencyMetricsSection }
                                 paceAnalysisSection
@@ -92,118 +114,7 @@ struct StatisticsView: View {
         }
     }
 
-    // MARK: - Section 1: Goal Progress
-
-    private var goalProgressSection: some View {
-        let goalDistance = 3000.0
-        let longestContinuousSwim = sessions.map(\.longestContinuousDistance).max() ?? 0
-        let progress = min(longestContinuousSwim / goalDistance, 1.0)
-
-        // Estimate completion: linear extrapolation from progression of longest continuous swims
-        let sortedByDate = sessions.sorted { $0.date < $1.date }
-        // Build running max of longest continuous distance over time
-        let progressionPoints: [(date: Date, best: Double)] = {
-            var runningMax = 0.0
-            return sortedByDate.compactMap { session in
-                let continuous = session.longestContinuousDistance
-                if continuous > runningMax {
-                    runningMax = continuous
-                    return (date: session.date, best: runningMax)
-                }
-                return nil
-            }
-        }()
-
-        let estimatedCompletion: String = {
-            guard progressionPoints.count >= 2 else { return "Need more data" }
-            let first = progressionPoints.first!
-            let last = progressionPoints.last!
-            let daysBetween = max(last.date.timeIntervalSince(first.date) / 86400, 1)
-            let distanceGain = last.best - first.best
-            guard distanceGain > 0 else { return "Need more data" }
-            let remaining = goalDistance - longestContinuousSwim
-            let daysNeeded = remaining / (distanceGain / daysBetween)
-            let estimatedDate = Calendar.current.date(byAdding: .day, value: Int(daysNeeded), to: .now)
-            return estimatedDate?.formatted(date: .abbreviated, time: .omitted) ?? "N/A"
-        }()
-
-        let isOnTrack: Bool = {
-            let deadline = Calendar.current.date(from: DateComponents(year: 2026, month: 8, day: 30)) ?? .now
-            guard progressionPoints.count >= 2 else { return false }
-            let first = progressionPoints.first!
-            let last = progressionPoints.last!
-            let daysBetween = max(last.date.timeIntervalSince(first.date) / 86400, 1)
-            let distanceGain = last.best - first.best
-            guard distanceGain > 0 else { return false }
-            let remaining = goalDistance - longestContinuousSwim
-            let daysNeeded = remaining / (distanceGain / daysBetween)
-            let estimatedDate = Calendar.current.date(byAdding: .day, value: Int(daysNeeded), to: .now) ?? .distantFuture
-            return estimatedDate <= deadline
-        }()
-
-        return SectionCard(title: "Goal Progress", icon: "target") {
-            VStack(spacing: 16) {
-                // Progress ring
-                ZStack {
-                    Circle()
-                        .stroke(Color(.systemGray5), lineWidth: 12)
-                    Circle()
-                        .trim(from: 0, to: progress)
-                        .stroke(progress >= 1.0 ? Color.green : Color.blue, style: StrokeStyle(lineWidth: 12, lineCap: .round))
-                        .rotationEffect(.degrees(-90))
-                        .animation(.easeInOut, value: progress)
-                    VStack(spacing: 4) {
-                        Text("\(Int(progress * 100))%")
-                            .font(.title.bold())
-                        Text("\(Int(longestContinuousSwim))m / \(Int(goalDistance))m")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .frame(width: 140, height: 140)
-
-                Divider()
-
-                HStack(spacing: 24) {
-                    VStack(spacing: 4) {
-                        Text("Longest Continuous")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("\(Int(longestContinuousSwim))m")
-                            .font(.subheadline.bold())
-                    }
-                    VStack(spacing: 4) {
-                        Text("Target")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text("\(Int(goalDistance))m")
-                            .font(.subheadline.bold())
-                    }
-                    VStack(spacing: 4) {
-                        Text("Est. Completion")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(estimatedCompletion)
-                            .font(.subheadline.bold())
-                    }
-                }
-
-                // On track indicator
-                HStack(spacing: 6) {
-                    Image(systemName: isOnTrack ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .foregroundStyle(isOnTrack ? .green : .orange)
-                    Text(isOnTrack ? "On track for Aug 30, 2026" : "Need to accelerate training")
-                        .font(.caption.bold())
-                        .foregroundStyle(isOnTrack ? .green : .orange)
-                }
-                .padding(.vertical, 6)
-                .padding(.horizontal, 12)
-                .background((isOnTrack ? Color.green : Color.orange).opacity(0.1), in: Capsule())
-            }
-        }
-    }
-
-    // MARK: - Section 2: Distance Trends
+    // MARK: - Distance Trends
 
     private var distanceTrendsSection: some View {
         let weeklyData = weeklyDistances()
