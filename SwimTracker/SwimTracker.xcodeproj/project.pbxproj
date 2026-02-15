@@ -22,6 +22,8 @@
 		A1B2C3D40000001D /* WorkoutSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000D /* WorkoutSeeder.swift */; };
 		A1B2C3D40000001E /* SessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000E /* SessionDetailView.swift */; };
 		A1B2C3D40000001F /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000F /* HealthKitManager.swift */; };
+		A1B2C3D400000071 /* StatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000070 /* StatisticsView.swift */; };
+		A1B2C3D400000073 /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000072 /* SessionHistoryView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +43,8 @@
 		A1B2C3D40000000E /* SessionDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionDetailView.swift; sourceTree = "<group>"; };
 		A1B2C3D40000000F /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
 		A1B2C3D400000010 /* SwimTracker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SwimTracker.entitlements; sourceTree = "<group>"; };
+		A1B2C3D400000070 /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
+		A1B2C3D400000072 /* SessionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryView.swift; sourceTree = "<group>"; };
 		A1B2C3D400000031 /* SwimTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwimTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -97,6 +101,8 @@
 				A1B2C3D400000006 /* UpcomingView.swift */,
 				A1B2C3D40000000B /* ChatView.swift */,
 				A1B2C3D40000000E /* SessionDetailView.swift */,
+				A1B2C3D400000070 /* StatisticsView.swift */,
+				A1B2C3D400000072 /* SessionHistoryView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -217,6 +223,8 @@
 				A1B2C3D40000001D /* WorkoutSeeder.swift in Sources */,
 				A1B2C3D40000001E /* SessionDetailView.swift in Sources */,
 				A1B2C3D40000001F /* HealthKitManager.swift in Sources */,
+				A1B2C3D400000071 /* StatisticsView.swift in Sources */,
+				A1B2C3D400000073 /* SessionHistoryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

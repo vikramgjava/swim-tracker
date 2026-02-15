@@ -95,6 +95,21 @@ struct SessionDetailView: View {
         }
         .onAppear {
             loadLinkedWorkout()
+            // Debug: verify detailedData is loading
+            print("[SessionDetail] Opening session: \(session.date.formatted(date: .abbreviated, time: .omitted)), distance=\(Int(session.distance))m")
+            print("[SessionDetail] healthKitId=\(session.healthKitId ?? "nil")")
+            print("[SessionDetail] detailedDataJSON exists=\(session.detailedDataJSON != nil)")
+            if let data = session.detailedData {
+                print("[SessionDetail] detailedData decoded OK: \(data.sets.count) sets, longestContinuous=\(data.effectiveLongestContinuousDistance)m")
+                for (i, set) in data.sets.enumerated() {
+                    print("[SessionDetail]   Set \(i+1): \(Int(set.totalDistance))m, \(set.laps.count) laps, SWOLF=\(set.averageSWOLF.map { String(Int($0)) } ?? "N/A"), pace=\(set.averagePace.map { formatPace($0) } ?? "N/A"), HR=\(set.averageHeartRate.map { "\($0)" } ?? "N/A")")
+                }
+            } else {
+                print("[SessionDetail] detailedData is nil! JSON present=\(session.detailedDataJSON != nil)")
+                if let json = session.detailedDataJSON {
+                    print("[SessionDetail] JSON preview: \(String(json.prefix(200)))")
+                }
+            }
         }
     }
 

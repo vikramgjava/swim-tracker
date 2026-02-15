@@ -35,14 +35,20 @@ class HealthKitManager {
         }
     }
 
+    /// Convenience: fetch swim workouts from a start date to now
     func fetchRecentSwimWorkouts(since startDate: Date) async {
+        await fetchSwimWorkouts(from: startDate, to: .now)
+    }
+
+    /// Fetch swim workouts within a date range and store in recentSwimWorkouts
+    func fetchSwimWorkouts(from startDate: Date, to endDate: Date) async {
         guard isAvailable else { return }
 
         isLoading = true
         defer { isLoading = false }
 
         let workoutType = HKWorkoutType.workoutType()
-        let datePredicate = HKQuery.predicateForSamples(withStart: startDate, end: .now, options: .strictStartDate)
+        let datePredicate = HKQuery.predicateForSamples(withStart: startDate, end: endDate, options: .strictStartDate)
         let activityPredicate = HKQuery.predicateForWorkouts(with: .swimming)
         let compound = NSCompoundPredicate(andPredicateWithSubpredicates: [datePredicate, activityPredicate])
         let sortDescriptor = NSSortDescriptor(key: HKSampleSortIdentifierStartDate, ascending: false)
@@ -130,10 +136,12 @@ class HealthKitManager {
                 averageHeartRate: avgHR,
                 maxHeartRate: maxHR
             )
+            print("[HealthKit] Fallback: no distance samples, single set. totalDistance=\(Int(totalDist))m, longestContinuousDistance=\(Int(totalDist))m")
             return WorkoutDetailedData(
                 sets: [set],
                 totalDistance: totalDist,
                 totalDuration: duration,
+                longestContinuousDistance: totalDist,
                 averagePace: pace,
                 averageHeartRate: avgHR,
                 maxHeartRate: maxHR
@@ -222,10 +230,17 @@ class HealthKitManager {
         let avgHR = allHRValues.isEmpty ? nil : allHRValues.reduce(0, +) / allHRValues.count
         let maxHR = allHRValues.max()
 
+        let longestContinuousDistance = sets.map(\.totalDistance).max() ?? totalDistance
+        print("[HealthKit] Workout details: \(sets.count) sets, totalDistance=\(Int(totalDistance))m, longestContinuousDistance=\(Int(longestContinuousDistance))m")
+        for (i, set) in sets.enumerated() {
+            print("[HealthKit]   Set \(i+1): \(Int(set.totalDistance))m, \(set.laps.count) laps, SWOLF=\(set.averageSWOLF.map { String(Int($0)) } ?? "N/A"), stroke=\(set.strokeType)")
+        }
+
         return WorkoutDetailedData(
             sets: sets,
             totalDistance: totalDistance,
             totalDuration: totalDuration,
+            longestContinuousDistance: longestContinuousDistance,
             averageSWOLF: avgSWOLF,
             averagePace: avgPace,
             averageHeartRate: avgHR,
