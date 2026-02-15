@@ -20,12 +20,15 @@ class HealthKitManager {
             return
         }
 
-        let typesToRead: Set<HKObjectType> = [
+        var typesToRead: Set<HKObjectType> = [
             HKWorkoutType.workoutType(),
             HKQuantityType(.heartRate),
             HKQuantityType(.distanceSwimming),
             HKQuantityType(.swimmingStrokeCount)
         ]
+        if #available(iOS 18.0, *) {
+            typesToRead.insert(HKQuantityType(.workoutEffortScore))
+        }
 
         do {
             try await healthStore.requestAuthorization(toShare: [], read: typesToRead)
@@ -79,6 +82,33 @@ class HealthKitManager {
         let distanceMeters = workout.totalDistance?.doubleValue(for: .meter()) ?? 0
         let durationMinutes = workout.duration / 60.0
         return (distance: distanceMeters, duration: durationMinutes, date: workout.startDate)
+    }
+
+    // MARK: - Effort Score
+
+    /// Fetch the user's effort rating (1-10) for a workout, if available
+    func fetchEffortScore(for workout: HKWorkout) async -> Int? {
+        guard isAvailable else { return nil }
+        if #available(iOS 18.0, *) {
+            // Query effort score samples overlapping the workout window
+            // Use a 30-minute buffer after workout end for post-workout ratings
+            let samples = await querySamples(
+                type: HKQuantityType(.workoutEffortScore),
+                start: workout.startDate,
+                end: workout.endDate.addingTimeInterval(1800)
+            )
+            guard let sample = samples.first else {
+                print("[HealthKit] No effort score found for workout on \(workout.startDate.formatted())")
+                return nil
+            }
+            let effort = Int(sample.quantity.doubleValue(for: .appleEffortScore()))
+            let mapped = max(1, min(10, effort))
+            print("[HealthKit] Effort score found: \(effort) → difficulty \(mapped)")
+            return mapped
+        } else {
+            print("[HealthKit] Effort score not available (requires iOS 18+)")
+            return nil
+        }
     }
 
     // MARK: - Detailed Workout Data
