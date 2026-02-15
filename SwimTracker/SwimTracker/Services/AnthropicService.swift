@@ -194,7 +194,7 @@ final class AnthropicService {
         messages.append(["role": "user", "content": fullUserContent])
 
         let body: [String: Any] = [
-            "model": "claude-sonnet-4-5-20250929",
+            "model": "claude-haiku-4-5-20251001",
             "max_tokens": 4096,
             "system": systemPrompt,
             "tools": [workoutTool],
@@ -266,8 +266,8 @@ final class AnthropicService {
             ])
 
             let followUpBody: [String: Any] = [
-                "model": "claude-sonnet-4-5-20250929",
-                "max_tokens": 1024,
+                "model": "claude-haiku-4-5-20251001",
+                "max_tokens": 2048,
                 "system": systemPrompt,
                 "tools": [workoutTool],
                 "messages": followUpMessages
