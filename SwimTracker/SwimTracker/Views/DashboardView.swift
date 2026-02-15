@@ -382,6 +382,7 @@ struct HKWorkoutProxy: Identifiable {
     let distance: Double
     let duration: Double
     let date: Date
+    let effortScore: Int?
 }
 
 // MARK: - HealthKit Import Sheet
@@ -415,12 +416,21 @@ struct HealthKitImportSheet: View {
         Set(sessions.compactMap(\.healthKitId))
     }
 
+    /// Workouts eligible for linking: not completed, scheduled within last 7 days
+    private var linkableWorkouts: [Workout] {
+        let sevenDaysAgo = Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .now
+        let filtered = upcomingWorkouts.filter { !$0.isCompleted && $0.scheduledDate >= sevenDaysAgo }
+            .sorted { $0.scheduledDate < $1.scheduledDate }
+        print("[Import] Linkable workouts: \(filtered.count) of \(upcomingWorkouts.count) total")
+        return filtered
+    }
+
     private var unimportedWorkouts: [HKWorkoutProxy] {
         healthKitManager.recentSwimWorkouts.compactMap { workout in
             let id = workout.uuid.uuidString
             guard !importedIds.contains(id) else { return nil }
             let data = healthKitManager.extractWorkoutData(workout: workout)
-            return HKWorkoutProxy(id: id, workout: workout, distance: data.distance, duration: data.duration, date: data.date)
+            return HKWorkoutProxy(id: id, workout: workout, distance: data.distance, duration: data.duration, date: data.date, effortScore: nil)
         }
     }
 
@@ -658,11 +668,11 @@ struct HealthKitImportSheet: View {
                     .lineLimit(3...6)
             }
 
-            if !upcomingWorkouts.isEmpty {
+            if !linkableWorkouts.isEmpty {
                 Section("Link to Workout") {
                     Picker("Workout", selection: $linkedWorkoutId) {
                         Text("None").tag(String?.none)
-                        ForEach(upcomingWorkouts) { workout in
+                        ForEach(linkableWorkouts) { workout in
                             Text("\(workout.title) — \(workout.scheduledDate.formatted(date: .abbreviated, time: .omitted))")
                                 .tag(Optional(workout.id.uuidString))
                         }
@@ -698,7 +708,16 @@ struct HealthKitImportSheet: View {
     private func loadDetails(for proxy: HKWorkoutProxy) {
         isLoadingDetails = true
         Task {
-            detailedData = await healthKitManager.fetchWorkoutDetails(for: proxy.workout)
+            async let details = healthKitManager.fetchWorkoutDetails(for: proxy.workout)
+            async let effort = healthKitManager.fetchEffortScore(for: proxy.workout)
+            detailedData = await details
+            if let effortScore = await effort {
+                importDifficulty = effortScore
+                print("[Import] Pre-filled difficulty from Apple Watch effort score: \(effortScore)")
+            } else {
+                importDifficulty = 5
+                print("[Import] No effort score available, defaulting difficulty to 5")
+            }
             isLoadingDetails = false
         }
     }
@@ -715,6 +734,22 @@ struct HealthKitImportSheet: View {
             detailedData: detailedData
         )
         modelContext.insert(session)
+        print("[Import] Imported workout: \(proxy.date.formatted(date: .abbreviated, time: .omitted)), \(Int(proxy.distance))m, difficulty=\(importDifficulty)")
+
+        // Mark linked workout as completed (Bug 2)
+        if let workoutIdString = linkedWorkoutId,
+           let uuid = UUID(uuidString: workoutIdString) {
+            let predicate = #Predicate<Workout> { $0.id == uuid }
+            let descriptor = FetchDescriptor<Workout>(predicate: predicate)
+            if let workout = try? modelContext.fetch(descriptor).first {
+                workout.isCompleted = true
+                workout.completedDate = Date()
+                print("[Import] Marked workout '\(workout.title)' (id: \(workoutIdString)) as completed")
+            } else {
+                print("[Import] Warning: Could not find linked workout with id \(workoutIdString)")
+            }
+        }
+
         showImportSuccess = true
     }
 
@@ -736,17 +771,22 @@ struct HealthKitImportSheet: View {
                     continue
                 }
 
-                // Fetch detailed data for this workout
-                let details = await healthKitManager.fetchWorkoutDetails(for: proxy.workout)
+                // Fetch detailed data and effort score for this workout
+                async let details = healthKitManager.fetchWorkoutDetails(for: proxy.workout)
+                async let effort = healthKitManager.fetchEffortScore(for: proxy.workout)
+                let detailsResult = await details
+                let effortResult = await effort
+                let difficulty = effortResult ?? 5
+                print("[BulkImport] Workout \(proxy.date.formatted(date: .abbreviated, time: .omitted)): effort=\(effortResult.map { String($0) } ?? "nil") → difficulty=\(difficulty)")
 
                 let session = SwimSession(
                     date: proxy.date,
                     distance: proxy.distance,
                     duration: proxy.duration,
                     notes: "",
-                    difficulty: 5,
+                    difficulty: difficulty,
                     healthKitId: proxy.id,
-                    detailedData: details
+                    detailedData: detailsResult
                 )
                 modelContext.insert(session)
                 bulkImportedCount += 1
