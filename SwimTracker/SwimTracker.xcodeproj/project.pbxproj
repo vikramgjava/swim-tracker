@@ -24,6 +24,10 @@
 		A1B2C3D40000001F /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000F /* HealthKitManager.swift */; };
 		A1B2C3D400000071 /* StatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000070 /* StatisticsView.swift */; };
 		A1B2C3D400000073 /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000072 /* SessionHistoryView.swift */; };
+		A1B2C3D400000075 /* WorkoutAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000074 /* WorkoutAnalysis.swift */; };
+		A1B2C3D400000077 /* WorkoutAnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000076 /* WorkoutAnalysisView.swift */; };
+		A1B2C3D400000079 /* RecentTrendsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000078 /* RecentTrendsCard.swift */; };
+		A1B2C3D40000007B /* AnalysesHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000007A /* AnalysesHistoryView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +49,10 @@
 		A1B2C3D400000010 /* SwimTracker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = SwimTracker.entitlements; sourceTree = "<group>"; };
 		A1B2C3D400000070 /* StatisticsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatisticsView.swift; sourceTree = "<group>"; };
 		A1B2C3D400000072 /* SessionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryView.swift; sourceTree = "<group>"; };
+		A1B2C3D400000074 /* WorkoutAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutAnalysis.swift; sourceTree = "<group>"; };
+		A1B2C3D400000076 /* WorkoutAnalysisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutAnalysisView.swift; sourceTree = "<group>"; };
+		A1B2C3D400000078 /* RecentTrendsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentTrendsCard.swift; sourceTree = "<group>"; };
+		A1B2C3D40000007A /* AnalysesHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysesHistoryView.swift; sourceTree = "<group>"; };
 		A1B2C3D400000031 /* SwimTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwimTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -89,6 +97,7 @@
 				A1B2C3D400000003 /* SwimSession.swift */,
 				A1B2C3D400000009 /* ChatMessage.swift */,
 				A1B2C3D40000000C /* Workout.swift */,
+				A1B2C3D400000074 /* WorkoutAnalysis.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -103,6 +112,9 @@
 				A1B2C3D40000000E /* SessionDetailView.swift */,
 				A1B2C3D400000070 /* StatisticsView.swift */,
 				A1B2C3D400000072 /* SessionHistoryView.swift */,
+				A1B2C3D400000076 /* WorkoutAnalysisView.swift */,
+				A1B2C3D400000078 /* RecentTrendsCard.swift */,
+				A1B2C3D40000007A /* AnalysesHistoryView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -225,6 +237,10 @@
 				A1B2C3D40000001F /* HealthKitManager.swift in Sources */,
 				A1B2C3D400000071 /* StatisticsView.swift in Sources */,
 				A1B2C3D400000073 /* SessionHistoryView.swift in Sources */,
+				A1B2C3D400000075 /* WorkoutAnalysis.swift in Sources */,
+				A1B2C3D400000077 /* WorkoutAnalysisView.swift in Sources */,
+				A1B2C3D400000079 /* RecentTrendsCard.swift in Sources */,
+				A1B2C3D40000007B /* AnalysesHistoryView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
