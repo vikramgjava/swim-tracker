@@ -7,10 +7,15 @@ struct SessionDetailView: View {
 
     @Bindable var session: SwimSession
 
+    @Query(sort: \SwimSession.date, order: .reverse) private var recentSessions: [SwimSession]
+
     @State private var isEditing = false
     @State private var showDeleteConfirmation = false
     @State private var linkedWorkout: Workout?
     @State private var showingAnalysis = false
+    @State private var isAnalyzing = false
+    @State private var service = AnthropicService()
+    @State private var showAnalysisError = false
 
     // Edit state
     @State private var editDate: Date = .now
@@ -98,6 +103,11 @@ struct SessionDetailView: View {
             Button("Cancel", role: .cancel) { }
         } message: {
             Text("This session will be permanently removed.")
+        }
+        .alert("Analysis Unavailable", isPresented: $showAnalysisError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text("Unable to analyze this workout. Check your API key in Settings and try again.")
         }
         .onAppear {
             loadLinkedWorkout()
@@ -235,6 +245,38 @@ struct SessionDetailView: View {
                         }
                     }
                     .buttonStyle(.plain)
+                }
+            } else if session.detailedData != nil {
+                Section {
+                    Button {
+                        requestAnalysis()
+                    } label: {
+                        HStack {
+                            if isAnalyzing {
+                                ProgressView()
+                                    .frame(width: 24, height: 24)
+                            } else {
+                                Image(systemName: "wand.and.stars")
+                                    .font(.title3)
+                                    .foregroundStyle(.purple)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(isAnalyzing ? "Analyzing..." : "Get AI Analysis")
+                                    .font(.subheadline.bold())
+                                Text("AI-powered insights for this workout")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            if !isAnalyzing {
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isAnalyzing)
                 }
             }
 
@@ -434,6 +476,28 @@ struct SessionDetailView: View {
     private func deleteSession() {
         modelContext.delete(session)
         dismiss()
+    }
+
+    private func requestAnalysis() {
+        isAnalyzing = true
+        Task {
+            do {
+                let analysis = try await service.analyzeWorkout(session: session, recentSessions: recentSessions)
+                isAnalyzing = false
+                if let analysis {
+                    session.analysis = analysis
+                    showingAnalysis = true
+                    print("[SessionDetail] Analysis complete: score=\(analysis.performanceScore)")
+                } else {
+                    print("[SessionDetail] Analysis returned nil")
+                    showAnalysisError = true
+                }
+            } catch {
+                isAnalyzing = false
+                print("[SessionDetail] Failed to analyze workout: \(error.localizedDescription)")
+                showAnalysisError = true
+            }
+        }
     }
 
     private func loadLinkedWorkout() {
