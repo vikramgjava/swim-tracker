@@ -4,12 +4,24 @@ struct WorkoutAnalysisView: View {
     let analysis: WorkoutAnalysis
     let session: SwimSession
     @Environment(\.dismiss) private var dismiss
+    @State private var animateScore = false
 
     private var scoreColor: Color {
         switch analysis.performanceScore {
         case 1...4: return .red
         case 5...7: return .orange
         default: return .green
+        }
+    }
+
+    private var scoreLabel: String {
+        switch analysis.performanceScore {
+        case 1...3: return "Needs Work"
+        case 4...5: return "Fair"
+        case 6...7: return "Good"
+        case 8...9: return "Great"
+        case 10: return "Excellent"
+        default: return ""
         }
     }
 
@@ -34,10 +46,14 @@ struct WorkoutAnalysisView: View {
                     trendsSection
 
                     // Key Insights
-                    insightsSection
+                    if !analysis.insights.isEmpty {
+                        insightsSection
+                    }
 
                     // Coach Recommendation
-                    recommendationSection
+                    if !analysis.recommendation.isEmpty {
+                        recommendationSection
+                    }
                 }
                 .padding()
             }
@@ -46,6 +62,11 @@ struct WorkoutAnalysisView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { dismiss() }
+                }
+            }
+            .onAppear {
+                withAnimation(.easeOut(duration: 0.8).delay(0.2)) {
+                    animateScore = true
                 }
             }
         }
@@ -61,14 +82,19 @@ struct WorkoutAnalysisView: View {
                     .frame(width: 120, height: 120)
 
                 Circle()
-                    .trim(from: 0, to: CGFloat(analysis.performanceScore) / 10.0)
-                    .stroke(scoreColor, style: StrokeStyle(lineWidth: 12, lineCap: .round))
+                    .trim(from: 0, to: animateScore ? CGFloat(analysis.performanceScore) / 10.0 : 0)
+                    .stroke(scoreColor.gradient, style: StrokeStyle(lineWidth: 12, lineCap: .round))
                     .frame(width: 120, height: 120)
                     .rotationEffect(.degrees(-90))
 
-                Text("\(analysis.performanceScore)")
-                    .font(.system(size: 44, weight: .bold, design: .rounded))
-                    .foregroundStyle(scoreColor)
+                VStack(spacing: 2) {
+                    Text("\(analysis.performanceScore)")
+                        .font(.system(size: 44, weight: .bold, design: .rounded))
+                        .foregroundStyle(scoreColor)
+                    Text(scoreLabel)
+                        .font(.caption2.bold())
+                        .foregroundStyle(scoreColor.opacity(0.8))
+                }
             }
 
             Text("Performance Score")

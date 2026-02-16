@@ -407,14 +407,24 @@ final class AnthropicService {
 
         workoutDetails += """
 
-        Respond with ONLY valid JSON matching this exact structure:
-        {"performanceScore": <1-10>, "insights": ["insight1", "insight2", "insight3"], "recommendation": "text", "swolfTrend": "improving|declining|stable", "paceTrend": "faster|slower|consistent", "effortVsPerformance": "efficient|hard_but_slow|easy_cruise"}
+        Analyze this workout and respond with ONLY valid JSON (no markdown, no code blocks, no explanation).
+
+        JSON structure:
+        {"performanceScore": 7, "insights": ["Your SWOLF improved by 3 points compared to last week, showing better stroke efficiency", "Heart rate stayed in the aerobic zone throughout, good endurance base building", "Pace was consistent across all sets with less than 5s variation"], "recommendation": "Focus on bilateral breathing next session to further improve stroke symmetry and SWOLF", "swolfTrend": "improving", "paceTrend": "consistent", "effortVsPerformance": "efficient"}
+
+        Rules:
+        - performanceScore: integer 1-10
+        - insights: array of exactly 3-4 specific, actionable observations
+        - recommendation: one clear next-step focus area
+        - swolfTrend: exactly one of "improving", "declining", "stable"
+        - paceTrend: exactly one of "faster", "slower", "consistent"
+        - effortVsPerformance: exactly one of "efficient", "hard_but_slow", "easy_cruise"
         """
 
         let body: [String: Any] = [
             "model": "claude-haiku-4-5-20251001",
             "max_tokens": 1024,
-            "system": "You are a swim coach analyzing workout performance. Respond ONLY with valid JSON, no markdown, no explanations.",
+            "system": "You are an expert swim coach analyzing workout data from an Apple Watch. Provide constructive, specific feedback focusing on technique efficiency (SWOLF), pacing strategy, effort management, and progress trends. Respond ONLY with valid JSON. No markdown, no code blocks, no explanations — just the raw JSON object.",
             "messages": [
                 ["role": "user", "content": workoutDetails]
             ]
@@ -450,17 +460,36 @@ final class AnthropicService {
             }
         }
 
-        guard !textResponse.isEmpty, let responseData = textResponse.data(using: .utf8) else {
+        guard !textResponse.isEmpty else {
             print("[WorkoutAnalysis] Empty response from API")
+            return nil
+        }
+
+        // Strip markdown code fences if model wrapped the JSON
+        var cleanedResponse = textResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+        if cleanedResponse.hasPrefix("```json") {
+            cleanedResponse = String(cleanedResponse.dropFirst(7))
+        } else if cleanedResponse.hasPrefix("```") {
+            cleanedResponse = String(cleanedResponse.dropFirst(3))
+        }
+        if cleanedResponse.hasSuffix("```") {
+            cleanedResponse = String(cleanedResponse.dropLast(3))
+        }
+        cleanedResponse = cleanedResponse.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        guard let responseData = cleanedResponse.data(using: .utf8) else {
+            print("[WorkoutAnalysis] Failed to encode cleaned response as UTF-8")
             return nil
         }
 
         // Decode into WorkoutAnalysis
         do {
             let analysis = try JSONDecoder().decode(WorkoutAnalysis.self, from: responseData)
+            print("[WorkoutAnalysis] Success: score=\(analysis.performanceScore), insights=\(analysis.insights.count)")
             return analysis
         } catch {
-            print("[WorkoutAnalysis] JSON decode error: \(error)")
+            print("[WorkoutAnalysis] Failed to parse analysis response: \(cleanedResponse.prefix(500))")
+            print("[WorkoutAnalysis] Decode error: \(error)")
             return nil
         }
     }

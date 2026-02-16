@@ -773,8 +773,9 @@ struct HealthKitImportSheet: View {
             }
         }
 
-        // Trigger AI analysis if session has detailed data
-        if session.detailedData != nil {
+        // Trigger AI analysis if session has detailed data and API key is configured
+        let hasApiKey = !(UserDefaults.standard.string(forKey: "anthropicAPIKey") ?? "").isEmpty
+        if session.detailedData != nil && hasApiKey {
             Task {
                 do {
                     let recentSessions = sessions
@@ -787,10 +788,11 @@ struct HealthKitImportSheet: View {
                         showingAnalysis = true
                         print("[Import] Analysis complete: score=\(analysis.performanceScore)")
                     } else {
+                        print("[Import] Analysis returned nil, skipping")
                         showImportSuccess = true
                     }
                 } catch {
-                    print("[Import] Analysis failed: \(error)")
+                    print("[Import] Failed to analyze workout: \(error.localizedDescription)")
                     showImportSuccess = true
                 }
             }
