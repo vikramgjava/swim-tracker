@@ -2,7 +2,6 @@ import SwiftUI
 
 struct RecentTrendsCard: View {
     let sessions: [SwimSession]
-    var onViewAll: () -> Void = {}
 
     private var analyzedSessions: [SwimSession] {
         sessions
@@ -79,9 +78,9 @@ struct RecentTrendsCard: View {
                 }
             }
 
-            // View All button
-            Button {
-                onViewAll()
+            // View All
+            NavigationLink {
+                AnalysesHistoryView()
             } label: {
                 HStack {
                     Text("View All Analyses")
