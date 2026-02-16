@@ -26,6 +26,7 @@
 		A1B2C3D400000073 /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000072 /* SessionHistoryView.swift */; };
 		A1B2C3D400000075 /* WorkoutAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000074 /* WorkoutAnalysis.swift */; };
 		A1B2C3D400000077 /* WorkoutAnalysisView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000076 /* WorkoutAnalysisView.swift */; };
+		A1B2C3D400000079 /* RecentTrendsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000078 /* RecentTrendsCard.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -49,6 +50,7 @@
 		A1B2C3D400000072 /* SessionHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SessionHistoryView.swift; sourceTree = "<group>"; };
 		A1B2C3D400000074 /* WorkoutAnalysis.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutAnalysis.swift; sourceTree = "<group>"; };
 		A1B2C3D400000076 /* WorkoutAnalysisView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutAnalysisView.swift; sourceTree = "<group>"; };
+		A1B2C3D400000078 /* RecentTrendsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentTrendsCard.swift; sourceTree = "<group>"; };
 		A1B2C3D400000031 /* SwimTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwimTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -109,6 +111,7 @@
 				A1B2C3D400000070 /* StatisticsView.swift */,
 				A1B2C3D400000072 /* SessionHistoryView.swift */,
 				A1B2C3D400000076 /* WorkoutAnalysisView.swift */,
+				A1B2C3D400000078 /* RecentTrendsCard.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -233,6 +236,7 @@
 				A1B2C3D400000073 /* SessionHistoryView.swift in Sources */,
 				A1B2C3D400000075 /* WorkoutAnalysis.swift in Sources */,
 				A1B2C3D400000077 /* WorkoutAnalysisView.swift in Sources */,
+				A1B2C3D400000079 /* RecentTrendsCard.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

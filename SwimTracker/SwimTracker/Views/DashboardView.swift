@@ -102,6 +102,11 @@ struct DashboardView: View {
                         goalProgressSection
                     }
 
+                    // Recent Performance Trends
+                    if sessions.contains(where: { $0.analysis != nil }) {
+                        RecentTrendsCard(sessions: sessions)
+                    }
+
                     // HealthKit import banner
                     if healthKitEnabled && unimportedCount > 0 {
                         Button {
