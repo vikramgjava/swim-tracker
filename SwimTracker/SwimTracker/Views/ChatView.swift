@@ -250,6 +250,9 @@ struct ChatView: View {
                     if let pace = data.averagePace {
                         details.append("Avg pace: \(formatPace(pace))/100m")
                     }
+                    if let longestSet = data.longestContinuousSet {
+                        details.append("Longest single set: \(Int(longestSet.totalDistance))m")
+                    }
                     // Stroke distribution
                     let strokeTypes = data.sets.map(\.strokeType)
                     let uniqueStrokes = Set(strokeTypes)
@@ -270,13 +273,28 @@ struct ChatView: View {
             let totalDistance = sessions.reduce(0) { $0 + $1.distance }
             let totalDuration = sessions.reduce(0) { $0 + $1.duration }
             let avgPace = totalDuration > 0 ? totalDistance / totalDuration : 0
-            parts.append("""
+
+            // Find longest single set PR
+            let prSession = sessions.filter { $0.longestSingleSet != nil }
+                .max { ($0.longestSingleSet?.distance ?? 0) < ($1.longestSingleSet?.distance ?? 0) }
+            let prDistance = prSession?.longestSingleSet?.distance
+            let prDate = prSession?.date
+
+            var summary = """
             PROGRESS SUMMARY:
               Total swims: \(totalSwims)
               Total distance: \(Int(totalDistance))m
               Average pace: \(String(format: "%.0f", avgPace))m/min
               Goal: 3,000m continuous by August 30, 2026
-            """)
+            """
+            if let pr = prDistance {
+                summary += "\n  Longest single set (no rest >15s): \(Int(pr))m"
+                if let date = prDate {
+                    summary += " (achieved \(date.formatted(date: .abbreviated, time: .omitted)))"
+                }
+                summary += "\n  Endurance target: 3,000m continuous (accounts for SF Bay currents during Alcatraz swim)"
+            }
+            parts.append(summary)
         }
 
         // Existing upcoming workouts

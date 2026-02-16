@@ -41,6 +41,11 @@ struct WorkoutDetailedData: Codable {
         let fromSets = sets.map(\.totalDistance).max()
         return fromSets ?? totalDistance
     }
+
+    /// Longest single set distance (the set with maximum totalDistance)
+    var longestContinuousSet: SwimSet? {
+        sets.max { $0.totalDistance < $1.totalDistance }
+    }
 }
 
 @Model
@@ -58,6 +63,12 @@ final class SwimSession {
     /// Longest continuous swim distance (no rest). Uses detailed set data if available, falls back to total session distance.
     var longestContinuousDistance: Double {
         detailedData?.effectiveLongestContinuousDistance ?? distance
+    }
+
+    /// Longest single set info (distance and duration). Returns nil if no detailed data.
+    var longestSingleSet: (distance: Double, duration: TimeInterval)? {
+        guard let set = detailedData?.longestContinuousSet else { return nil }
+        return (distance: set.totalDistance, duration: set.totalDuration)
     }
 
     var analysis: WorkoutAnalysis? {

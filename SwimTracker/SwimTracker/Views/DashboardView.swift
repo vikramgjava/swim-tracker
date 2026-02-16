@@ -370,10 +370,132 @@ struct DashboardView: View {
             .padding(.vertical, 6)
             .padding(.horizontal, 12)
             .background((isOnTrack ? Color.green : Color.orange).opacity(0.1), in: Capsule())
+
+            // Endurance Capacity
+            enduranceCapacitySection
         }
         .frame(maxWidth: .infinity)
         .padding()
         .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+    }
+
+    // MARK: - Endurance Capacity
+
+    private var enduranceCapacitySection: some View {
+        let enduranceGoal = 3000.0
+        let sessionsWithSets = sessions.filter { $0.longestSingleSet != nil }
+        let prSession = sessionsWithSets.max { ($0.longestSingleSet?.distance ?? 0) < ($1.longestSingleSet?.distance ?? 0) }
+        let prDistance = prSession?.longestSingleSet?.distance ?? 0
+        let prDuration = prSession?.longestSingleSet?.duration
+        let enduranceProgress = min(prDistance / enduranceGoal, 1.0)
+
+        // Find previous PR (second best)
+        let sortedByDate = sessionsWithSets.sorted { $0.date < $1.date }
+        let previousPR: Double? = {
+            var runningMax = 0.0
+            var prevMax = 0.0
+            for s in sortedByDate {
+                let dist = s.longestSingleSet?.distance ?? 0
+                if dist > runningMax {
+                    prevMax = runningMax
+                    runningMax = dist
+                }
+            }
+            return prevMax > 0 ? prevMax : nil
+        }()
+
+        let enduranceColor: Color = {
+            if prDistance > 1600 { return .green }
+            if prDistance >= 800 { return .blue }
+            return .orange
+        }()
+
+        return Group {
+            if !sessionsWithSets.isEmpty {
+                Divider()
+
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "figure.pool.swim")
+                            .foregroundStyle(enduranceColor)
+                        Text("Endurance Capacity")
+                            .font(.subheadline.bold())
+                        Spacer()
+                    }
+
+                    // Progress bar
+                    VStack(alignment: .leading, spacing: 4) {
+                        GeometryReader { geo in
+                            ZStack(alignment: .leading) {
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(Color(.systemGray5))
+                                    .frame(height: 12)
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(enduranceColor.gradient)
+                                    .frame(width: geo.size.width * enduranceProgress, height: 12)
+                            }
+                        }
+                        .frame(height: 12)
+
+                        Text("Longest Single Set: \(Int(prDistance))m / \(Int(enduranceGoal))m")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
+                    HStack(spacing: 16) {
+                        if let pr = prSession {
+                            Button {
+                                selectedSession = pr
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("PR Set")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                    Text("\(Int(prDistance))m")
+                                        .font(.subheadline.bold())
+                                        .foregroundStyle(enduranceColor)
+                                    HStack(spacing: 2) {
+                                        Text(pr.date, format: .dateTime.month(.abbreviated).day())
+                                            .font(.caption2)
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 8))
+                                    }
+                                    .foregroundStyle(.blue)
+                                }
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        if let duration = prDuration {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Duration")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                let mins = Int(duration) / 60
+                                let secs = Int(duration) % 60
+                                Text("\(mins):\(String(format: "%02d", secs))")
+                                    .font(.subheadline.bold().monospacedDigit())
+                            }
+                        }
+
+                        if let prev = previousPR {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Previous PR")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                                HStack(spacing: 4) {
+                                    Text("\(Int(prev))m")
+                                        .font(.subheadline.bold())
+                                    Text("(+\(Int(prDistance - prev))m)")
+                                        .font(.caption2)
+                                        .foregroundStyle(.green)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

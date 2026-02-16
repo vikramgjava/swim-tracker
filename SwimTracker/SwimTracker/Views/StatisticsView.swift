@@ -90,6 +90,7 @@ struct StatisticsView: View {
                                     .padding(.top, 40)
                             } else {
                                 distanceTrendsSection
+                                if hasDetailedData { enduranceProgressionSection }
                                 if hasDetailedData { efficiencyMetricsSection }
                                 paceAnalysisSection
                                 if hasDetailedData { heartRateAnalysisSection }
@@ -153,6 +154,132 @@ struct StatisticsView: View {
                                 .foregroundStyle(trend >= 0 ? .green : .orange)
                         }
                     }
+                }
+            }
+        }
+    }
+
+    // MARK: - Endurance Progression
+
+    private var enduranceProgressionSection: some View {
+        let enduranceGoal = 3000.0
+        let enduranceData = sessionsWithDetailedData.compactMap { session -> (date: Date, distance: Double)? in
+            guard let set = session.longestSingleSet else { return nil }
+            return (date: session.date, distance: set.distance)
+        }.sorted { $0.date < $1.date }
+
+        // Calculate PRs (running max)
+        let prDates: Set<Date> = {
+            var maxSoFar = 0.0
+            var dates = Set<Date>()
+            for item in enduranceData {
+                if item.distance > maxSoFar {
+                    maxSoFar = item.distance
+                    dates.insert(item.date)
+                }
+            }
+            return dates
+        }()
+
+        let currentPR = enduranceData.map(\.distance).max() ?? 0
+
+        return SectionCard(title: "Endurance Progression", icon: "figure.pool.swim") {
+            VStack(alignment: .leading, spacing: 12) {
+                if enduranceData.isEmpty {
+                    Text("Import Apple Watch workouts to track endurance.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                } else {
+                    Chart {
+                        // Goal line at 3,000m
+                        RuleMark(y: .value("Goal", enduranceGoal))
+                            .foregroundStyle(.green.opacity(0.5))
+                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 3]))
+                            .annotation(position: .top, alignment: .trailing) {
+                                Text("3,000m goal")
+                                    .font(.caption2)
+                                    .foregroundStyle(.green)
+                            }
+
+                        // Line chart
+                        ForEach(enduranceData, id: \.date) { item in
+                            LineMark(
+                                x: .value("Date", item.date),
+                                y: .value("Distance", item.distance)
+                            )
+                            .foregroundStyle(.blue)
+                            .interpolationMethod(.catmullRom)
+
+                            // PR points highlighted
+                            if prDates.contains(item.date) {
+                                PointMark(
+                                    x: .value("Date", item.date),
+                                    y: .value("Distance", item.distance)
+                                )
+                                .foregroundStyle(.orange)
+                                .symbolSize(50)
+                            } else {
+                                PointMark(
+                                    x: .value("Date", item.date),
+                                    y: .value("Distance", item.distance)
+                                )
+                                .foregroundStyle(.blue)
+                                .symbolSize(20)
+                            }
+                        }
+                    }
+                    .chartYAxisLabel("meters")
+                    .chartYScale(domain: 0...(max(enduranceGoal, currentPR) * 1.1))
+                    .frame(height: 200)
+
+                    // Stats row
+                    HStack(spacing: 24) {
+                        VStack(spacing: 4) {
+                            Text("PR Set")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("\(Int(currentPR))m")
+                                .font(.subheadline.bold())
+                                .foregroundStyle(currentPR > 1600 ? .green : currentPR >= 800 ? .blue : .orange)
+                        }
+                        VStack(spacing: 4) {
+                            Text("Goal")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            Text("\(Int(enduranceGoal))m")
+                                .font(.subheadline.bold())
+                        }
+                        if enduranceData.count >= 2 {
+                            let trend = enduranceData.last!.distance - enduranceData.first!.distance
+                            VStack(spacing: 4) {
+                                Text("Trend")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                HStack(spacing: 2) {
+                                    Image(systemName: trend >= 0 ? "arrow.up.right" : "arrow.down.right")
+                                    Text(trend >= 0 ? "+\(Int(trend))m" : "\(Int(trend))m")
+                                }
+                                .font(.subheadline.bold())
+                                .foregroundStyle(trend >= 0 ? .green : .orange)
+                            }
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+
+                    // Legend
+                    HStack(spacing: 12) {
+                        legendDot(color: .orange, label: "PR")
+                        legendDot(color: .blue, label: "Session")
+                        HStack(spacing: 4) {
+                            Rectangle()
+                                .fill(.green.opacity(0.5))
+                                .frame(width: 16, height: 2)
+                            Text("Goal")
+                        }
+                    }
+                    .font(.caption2)
                 }
             }
         }
