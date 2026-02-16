@@ -10,6 +10,7 @@ struct SessionDetailView: View {
     @State private var isEditing = false
     @State private var showDeleteConfirmation = false
     @State private var linkedWorkout: Workout?
+    @State private var showingAnalysis = false
 
     // Edit state
     @State private var editDate: Date = .now
@@ -83,6 +84,11 @@ struct SessionDetailView: View {
                         isEditing = false
                     }
                 }
+            }
+        }
+        .sheet(isPresented: $showingAnalysis) {
+            if let analysis = session.analysis {
+                WorkoutAnalysisView(analysis: analysis, session: session)
             }
         }
         .alert("Delete Session?", isPresented: $showDeleteConfirmation) {
@@ -202,6 +208,33 @@ struct SessionDetailView: View {
                     }
                 } else {
                     LabeledContent("Max HR") { Text("N/A").foregroundStyle(.secondary) }
+                }
+            }
+
+            // AI Analysis button
+            if session.analysis != nil {
+                Section {
+                    Button {
+                        showingAnalysis = true
+                    } label: {
+                        HStack {
+                            Image(systemName: "chart.bar.doc.horizontal.fill")
+                                .font(.title3)
+                                .foregroundStyle(.blue)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Coach Analysis")
+                                    .font(.subheadline.bold())
+                                Text("View AI insights for this workout")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .font(.caption)
+                                .foregroundStyle(.tertiary)
+                        }
+                    }
+                    .buttonStyle(.plain)
                 }
             }
 
