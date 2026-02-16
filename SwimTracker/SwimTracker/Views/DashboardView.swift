@@ -412,6 +412,12 @@ struct HealthKitImportSheet: View {
     @State private var bulkImportDone = false
     @State private var bulkImportedCount = 0
 
+    // Analysis state
+    @State private var service = AnthropicService()
+    @State private var showingAnalysis = false
+    @State private var currentAnalysis: WorkoutAnalysis?
+    @State private var analyzedSession: SwimSession?
+
     private var importedIds: Set<String> {
         Set(sessions.compactMap(\.healthKitId))
     }
@@ -469,6 +475,23 @@ struct HealthKitImportSheet: View {
                 Button("Cancel", role: .cancel) { }
             } message: {
                 Text("This will import \(unimportedWorkouts.count) swim workouts from Apple Health with detailed lap data. This may take a moment.")
+            }
+            .sheet(isPresented: $showingAnalysis) {
+                if let analysis = currentAnalysis, let session = analyzedSession {
+                    WorkoutAnalysisView(analysis: analysis, session: session)
+                }
+            }
+            .overlay {
+                if service.isAnalyzing {
+                    VStack(spacing: 12) {
+                        ProgressView()
+                        Text("Analyzing workout...")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(24)
+                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 16))
+                }
             }
             .alert("Import Complete", isPresented: $bulkImportDone) {
                 Button("OK") {
@@ -750,7 +773,30 @@ struct HealthKitImportSheet: View {
             }
         }
 
-        showImportSuccess = true
+        // Trigger AI analysis if session has detailed data
+        if session.detailedData != nil {
+            Task {
+                do {
+                    let recentSessions = sessions
+                    let analysis = try await service.analyzeWorkout(session: session, recentSessions: recentSessions)
+                    if let analysis {
+                        session.analysis = analysis
+                        analyzedSession = session
+                        currentAnalysis = analysis
+                        showImportSuccess = false
+                        showingAnalysis = true
+                        print("[Import] Analysis complete: score=\(analysis.performanceScore)")
+                    } else {
+                        showImportSuccess = true
+                    }
+                } catch {
+                    print("[Import] Analysis failed: \(error)")
+                    showImportSuccess = true
+                }
+            }
+        } else {
+            showImportSuccess = true
+        }
     }
 
     private func startBulkImport() {
