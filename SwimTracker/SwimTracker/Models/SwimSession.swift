@@ -53,10 +53,25 @@ final class SwimSession {
     var workoutId: String? // UUID string linking to source Workout
     var healthKitId: String? // HKWorkout UUID to prevent duplicate imports
     var detailedDataJSON: String? // JSON-encoded WorkoutDetailedData
+    var analysisJSON: String? // JSON-encoded WorkoutAnalysis
 
     /// Longest continuous swim distance (no rest). Uses detailed set data if available, falls back to total session distance.
     var longestContinuousDistance: Double {
         detailedData?.effectiveLongestContinuousDistance ?? distance
+    }
+
+    var analysis: WorkoutAnalysis? {
+        get {
+            guard let json = analysisJSON, let data = json.data(using: .utf8) else { return nil }
+            return try? JSONDecoder().decode(WorkoutAnalysis.self, from: data)
+        }
+        set {
+            guard let value = newValue, let data = try? JSONEncoder().encode(value) else {
+                analysisJSON = nil
+                return
+            }
+            analysisJSON = String(data: data, encoding: .utf8)
+        }
     }
 
     var detailedData: WorkoutDetailedData? {
