@@ -25,6 +25,7 @@ enum AnthropicError: LocalizedError {
 @Observable
 final class AnthropicService {
     var isLoading = false
+    var isAnalyzing = false
     var errorMessage: String?
     var workoutsUpdated = false
     var proposedWorkouts: [Workout] = []
@@ -354,6 +355,114 @@ final class AnthropicService {
 
         proposedWorkouts = parsed
         return "Successfully created \(parsed.count) workouts."
+    }
+
+    func analyzeWorkout(session: SwimSession, recentSessions: [SwimSession]) async throws -> WorkoutAnalysis? {
+        guard let apiKey = UserDefaults.standard.string(forKey: "anthropicAPIKey"), !apiKey.isEmpty else {
+            throw AnthropicError.missingAPIKey
+        }
+
+        isAnalyzing = true
+        defer { isAnalyzing = false }
+
+        // Build workout details
+        var workoutDetails = "WORKOUT TO ANALYZE:\n"
+        workoutDetails += "Date: \(session.date.formatted(date: .abbreviated, time: .omitted))\n"
+        workoutDetails += "Distance: \(Int(session.distance))m\n"
+        workoutDetails += "Duration: \(Int(session.duration)) min\n"
+        workoutDetails += "Difficulty: \(session.difficulty)/10\n"
+
+        if let data = session.detailedData {
+            workoutDetails += "Sets: \(data.sets.count)\n"
+            for (i, set) in data.sets.enumerated() {
+                workoutDetails += "  Set \(i + 1): \(Int(set.totalDistance))m, \(set.strokeType)"
+                if let swolf = set.averageSWOLF { workoutDetails += ", SWOLF \(Int(swolf))" }
+                if let pace = set.averagePace { workoutDetails += ", pace \(String(format: "%.1f", pace))min/100m" }
+                if let hr = set.averageHeartRate { workoutDetails += ", HR \(hr)bpm" }
+                workoutDetails += "\n"
+            }
+            if let swolf = data.averageSWOLF { workoutDetails += "Overall SWOLF: \(Int(swolf))\n" }
+            if let pace = data.averagePace { workoutDetails += "Overall pace: \(String(format: "%.1f", pace))min/100m\n" }
+            if let hr = data.averageHeartRate { workoutDetails += "Avg HR: \(hr)bpm\n" }
+            if let maxHR = data.maxHeartRate { workoutDetails += "Max HR: \(maxHR)bpm\n" }
+        }
+
+        if !session.notes.isEmpty {
+            workoutDetails += "Notes: \(session.notes)\n"
+        }
+
+        // Add recent session history for trend comparison
+        let history = recentSessions.prefix(5)
+        if !history.isEmpty {
+            workoutDetails += "\nRECENT HISTORY (for trend comparison):\n"
+            for s in history {
+                workoutDetails += "  \(s.date.formatted(date: .abbreviated, time: .omitted)): \(Int(s.distance))m in \(Int(s.duration))min, difficulty \(s.difficulty)/10"
+                if let data = s.detailedData {
+                    if let swolf = data.averageSWOLF { workoutDetails += ", SWOLF \(Int(swolf))" }
+                    if let pace = data.averagePace { workoutDetails += ", pace \(String(format: "%.1f", pace))min/100m" }
+                }
+                workoutDetails += "\n"
+            }
+        }
+
+        workoutDetails += """
+
+        Respond with ONLY valid JSON matching this exact structure:
+        {"performanceScore": <1-10>, "insights": ["insight1", "insight2", "insight3"], "recommendation": "text", "swolfTrend": "improving|declining|stable", "paceTrend": "faster|slower|consistent", "effortVsPerformance": "efficient|hard_but_slow|easy_cruise"}
+        """
+
+        let body: [String: Any] = [
+            "model": "claude-haiku-4-5-20251001",
+            "max_tokens": 1024,
+            "system": "You are a swim coach analyzing workout performance. Respond ONLY with valid JSON, no markdown, no explanations.",
+            "messages": [
+                ["role": "user", "content": workoutDetails]
+            ]
+        ]
+
+        let jsonData = try JSONSerialization.data(withJSONObject: body)
+
+        var request = URLRequest(url: URL(string: "https://api.anthropic.com/v1/messages")!)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "content-type")
+        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
+        request.setValue("2023-06-01", forHTTPHeaderField: "anthropic-version")
+        request.httpBody = jsonData
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
+            print("[WorkoutAnalysis] API error: HTTP \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+            return nil
+        }
+
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let contentBlocks = json["content"] as? [[String: Any]] else {
+            print("[WorkoutAnalysis] Failed to parse API response")
+            return nil
+        }
+
+        // Extract text from response
+        var textResponse = ""
+        for block in contentBlocks {
+            if block["type"] as? String == "text", let text = block["text"] as? String {
+                textResponse += text
+            }
+        }
+
+        guard !textResponse.isEmpty, let responseData = textResponse.data(using: .utf8) else {
+            print("[WorkoutAnalysis] Empty response from API")
+            return nil
+        }
+
+        // Decode into WorkoutAnalysis
+        do {
+            let analysis = try JSONDecoder().decode(WorkoutAnalysis.self, from: responseData)
+            return analysis
+        } catch {
+            print("[WorkoutAnalysis] JSON decode error: \(error)")
+            return nil
+        }
     }
 
     func acceptWorkouts(modelContext: ModelContext) {
