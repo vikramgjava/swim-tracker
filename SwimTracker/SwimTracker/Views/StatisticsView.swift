@@ -2,22 +2,12 @@ import SwiftUI
 import SwiftData
 import Charts
 
-// MARK: - Time Range Filter
+// MARK: - Monthly Progress Time Range
 
-enum TimeRange: String, CaseIterable {
-    case last30 = "Last 30 Days"
-    case last60 = "Last 60 Days"
-    case last90 = "Last 90 Days"
+enum MonthlyTimeRange: String, CaseIterable {
+    case last6Months = "Last 6 Mo"
+    case thisYear = "This Year"
     case allTime = "All Time"
-
-    var startDate: Date? {
-        switch self {
-        case .last30: return Calendar.current.date(byAdding: .day, value: -30, to: .now)
-        case .last60: return Calendar.current.date(byAdding: .day, value: -60, to: .now)
-        case .last90: return Calendar.current.date(byAdding: .day, value: -90, to: .now)
-        case .allTime: return nil
-        }
-    }
 }
 
 // MARK: - StatisticsView
@@ -25,16 +15,12 @@ enum TimeRange: String, CaseIterable {
 struct StatisticsView: View {
     @Binding var isDarkMode: Bool
     @Query(sort: \SwimSession.date) private var allSessions: [SwimSession]
-    @State private var timeRange: TimeRange = .last60
-    @State private var selectedWeekIndex: Int = 4 // 0-4, default to current week (index 4)
-
-    private var sessions: [SwimSession] {
-        guard let start = timeRange.startDate else { return allSessions }
-        return allSessions.filter { $0.date >= start }
-    }
+    @State private var selectedWeekIndex: Int = 7 // 0-7, default to current week (index 7)
+    @State private var selectedMonthIndex: Int = 0 // 0 = latest month (reversed order)
+    @AppStorage("monthlyProgressTimeRange") private var monthlyTimeRange: String = MonthlyTimeRange.thisYear.rawValue
 
     private var sessionsWithDetailedData: [SwimSession] {
-        sessions.filter { $0.detailedData != nil }
+        allSessions.filter { $0.detailedData != nil }
     }
 
     private var hasDetailedData: Bool {
@@ -53,51 +39,41 @@ struct StatisticsView: View {
                 } else {
                     ScrollView {
                         VStack(spacing: 24) {
-                            // Time range picker
-                            Picker("Time Range", selection: $timeRange) {
-                                ForEach(TimeRange.allCases, id: \.self) { range in
-                                    Text(range.rawValue).tag(range)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .padding(.horizontal)
-
-                            // View All Sessions button
-                            NavigationLink {
-                                SessionHistoryView()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "list.bullet.clipboard")
-                                        .foregroundStyle(.blue)
-                                    Text("View All Sessions")
-                                        .font(.subheadline.bold())
-                                    Spacer()
-                                    Text("\(allSessions.count) swims")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                .padding()
-                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.horizontal)
-
-                            if sessions.isEmpty {
-                                Text("No swims in this time period.")
+                            if allSessions.isEmpty {
+                                Text("No swims logged yet.")
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 40)
                             } else {
-                                distanceTrendsSection
                                 weeklyComparisonSection
-                                if hasDetailedData { enduranceProgressionSection }
+                                monthlyComparisonSection
                                 if hasDetailedData { efficiencyMetricsSection }
                                 paceAnalysisSection
                                 if hasDetailedData { heartRateAnalysisSection }
                                 trainingVolumeSection
                                 quickStatsSection
+
+                                // View All Sessions button
+                                NavigationLink {
+                                    SessionHistoryView()
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "list.bullet.clipboard")
+                                            .foregroundStyle(.blue)
+                                        Text("View All Sessions")
+                                            .font(.subheadline.bold())
+                                        Spacer()
+                                        Text("\(allSessions.count) swims")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .padding()
+                                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.horizontal)
                             }
                         }
                         .padding(.vertical)
@@ -111,50 +87,6 @@ struct StatisticsView: View {
                         isDarkMode.toggle()
                     } label: {
                         Image(systemName: isDarkMode ? "sun.max.fill" : "moon.fill")
-                    }
-                }
-            }
-        }
-    }
-
-    // MARK: - Distance Trends
-
-    private var distanceTrendsSection: some View {
-        let weeklyData = weeklyDistances()
-
-        return SectionCard(title: "Distance Trends", icon: "chart.line.uptrend.xyaxis") {
-            VStack(alignment: .leading, spacing: 12) {
-                if weeklyData.isEmpty {
-                    Text("Not enough data for trends.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 20)
-                } else {
-                    // Weekly distance bar chart
-                    Chart(weeklyData, id: \.weekStart) { item in
-                        BarMark(
-                            x: .value("Week", item.weekStart, unit: .weekOfYear),
-                            y: .value("Distance", item.distance)
-                        )
-                        .foregroundStyle(.blue.gradient)
-                        .cornerRadius(4)
-                    }
-                    .chartYAxisLabel("meters")
-                    .frame(height: 180)
-
-                    // Trend summary
-                    if weeklyData.count >= 2 {
-                        let firstWeek = weeklyData.first!.distance
-                        let lastWeek = weeklyData.last!.distance
-                        let trend = lastWeek - firstWeek
-                        HStack(spacing: 6) {
-                            Image(systemName: trend >= 0 ? "arrow.up.right" : "arrow.down.right")
-                                .foregroundStyle(trend >= 0 ? .green : .orange)
-                            Text(trend >= 0 ? "+\(Int(trend))m weekly trend" : "\(Int(trend))m weekly trend")
-                                .font(.caption.bold())
-                                .foregroundStyle(trend >= 0 ? .green : .orange)
-                        }
                     }
                 }
             }
@@ -213,7 +145,7 @@ struct StatisticsView: View {
                             }
                             if hasEnduranceData {
                                 HStack(spacing: 4) {
-                                    Circle().fill(.orange).frame(width: 8, height: 8)
+                                    Circle().fill(.purple).frame(width: 8, height: 8)
                                     Text("Longest Set")
                                         .font(.caption2)
                                         .foregroundStyle(.secondary)
@@ -237,7 +169,7 @@ struct StatisticsView: View {
                         if hasEnduranceData {
                             Text("m")
                                 .font(.caption2.bold())
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(.purple)
                         }
                     }
 
@@ -250,27 +182,20 @@ struct StatisticsView: View {
                     let distYMin = max(0, floor((distMin - distStep * 0.5) / distStep) * distStep)
                     let distYMax = ceil((distMax + distStep * 0.5) / distStep) * distStep
 
-                    // Compute endurance axis range (meters)
-                    let enduranceValues = weeklyTotals.compactMap { $0.longestSet }
-                    let endurMax = enduranceValues.max() ?? 1000
-                    // Round up to a clean ceiling for the right axis
-                    let endurCeil: Double = {
-                        if endurMax <= 500 { return ceil(endurMax / 100) * 100 }
-                        if endurMax <= 2000 { return ceil(endurMax / 500) * 500 }
-                        return ceil(endurMax / 1000) * 1000
-                    }()
-                    let endurStep: Double = {
-                        if endurCeil <= 500 { return 100 }
-                        if endurCeil <= 2000 { return 500 }
-                        return 1000
-                    }()
+                    // Fixed endurance axis: 0–3,000m (Alcatraz goal)
+                    let endurCeil: Double = 3000
+                    let distYRange = distYMax - distYMin
 
                     // Map endurance (meters) → chart Y (km scale)
-                    // endurCeil meters maps to distYMax km
+                    // 0m maps to distYMin, 3000m maps to distYMax
                     let endurToChart: (Double) -> Double = { meters in
-                        guard endurCeil > 0, distYMax > 0 else { return 0 }
-                        return (meters / endurCeil) * distYMax
+                        guard distYRange > 0 else { return distYMin }
+                        return distYMin + (meters / endurCeil) * distYRange
                     }
+
+                    // Precompute endurance grid values mapped to chart Y scale
+                    // Every 600m: 0, 600, 1200, 1800, 2400, 3000
+                    let endurGridChartValues = stride(from: 0.0, through: 3000.0, by: 600.0).map { endurToChart($0) }
 
                     // 4-week averages (exclude current incomplete week)
                     let completedWeeks = weeklyTotals.filter { !$0.isCurrent }
@@ -294,7 +219,7 @@ struct StatisticsView: View {
                         }
                         if hasEnduranceData, let avgEndur = avgEnduranceM {
                             RuleMark(y: .value("Value", endurToChart(avgEndur)))
-                                .foregroundStyle(.orange.opacity(0.4))
+                                .foregroundStyle(.purple.opacity(0.4))
                                 .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
                         }
 
@@ -331,7 +256,7 @@ struct StatisticsView: View {
                                     y: .value("Value", chartY),
                                     series: .value("Series", "Endurance")
                                 )
-                                .foregroundStyle(.orange)
+                                .foregroundStyle(.purple)
                                 .interpolationMethod(.catmullRom)
                                 .lineStyle(StrokeStyle(lineWidth: 3, dash: [6, 3]))
 
@@ -339,7 +264,7 @@ struct StatisticsView: View {
                                     x: .value("Week", week.label),
                                     y: .value("Value", chartY)
                                 )
-                                .foregroundStyle(endurValue > 0 ? (isSelected ? .orange : .orange.opacity(0.5)) : .clear)
+                                .foregroundStyle(endurValue > 0 ? (isSelected ? .purple : .purple.opacity(0.5)) : .clear)
                                 .symbolSize(endurValue > 0 ? (isSelected ? 80 : 30) : 0)
                             }
                         }
@@ -358,15 +283,17 @@ struct StatisticsView: View {
                                 }
                             }
                         }
-                        // Right axis: Endurance (m) — orange
+                        // Right axis: Endurance (m) — purple, fixed 0–3,000m, every 600m
                         if hasEnduranceData {
-                            AxisMarks(position: .trailing, values: .stride(by: distStep)) { value in
+                            AxisMarks(position: .trailing, values: endurGridChartValues) { value in
+                                AxisGridLine(stroke: StrokeStyle(lineWidth: 1))
+                                    .foregroundStyle(.purple.opacity(0.18))
                                 AxisValueLabel {
-                                    if let chartKm = value.as(Double.self), distYMax > 0 {
-                                        let meters = (chartKm / distYMax) * endurCeil
-                                        Text("\(Int(meters))")
+                                    if let chartKm = value.as(Double.self), distYRange > 0 {
+                                        let meters = Int(((chartKm - distYMin) / distYRange) * 3000)
+                                        Text("\(meters)")
                                             .font(.caption2)
-                                            .foregroundStyle(.orange)
+                                            .foregroundStyle(.purple)
                                     }
                                 }
                             }
@@ -402,65 +329,61 @@ struct StatisticsView: View {
                     .frame(height: 140)
 
                     // Row 1: Distance cards
-                    HStack(spacing: 10) {
-                        weekMetricCard(
+                    sectionHeader("Distance (km)")
+                    HStack(spacing: 8) {
+                        metricCard(
                             icon: "figure.pool.swim",
-                            label: selected?.isCurrent == true ? "This Week" : (selected?.dateRange ?? selected?.label ?? "—"),
-                            value: formatKm(selected?.distance ?? 0),
+                            value: formatKmNum(selected?.distance ?? 0),
+                            title: selected?.isCurrent == true ? "This Week" : (selected?.label ?? "—"),
+                            subtitle: selected?.dateRange ?? "",
                             accent: .teal
                         )
-                        weekMetricCard(
+                        metricCard(
                             icon: "calendar",
-                            label: "Previous",
-                            value: previous != nil ? formatKm(previous!.distance) : "N/A",
+                            value: previous != nil ? formatKmNum(previous!.distance) : "—",
+                            title: "Previous",
+                            subtitle: previous?.dateRange ?? "",
                             accent: .secondary
                         )
                         if let change = distChange, let pct = distChangePct {
-                            weekMetricCard(
+                            metricCard(
                                 icon: change >= 0 ? "arrow.up.right" : "arrow.down.right",
-                                label: "Change",
-                                value: "\(formatKm(abs(change))) (\(String(format: "%+.0f%%", pct)))",
-                                accent: change >= 0 ? .green : .orange
+                                value: String(format: "%+.1f", change / 1000),
+                                title: "Change",
+                                subtitle: String(format: "%+.0f%%", pct),
+                                accent: change >= 0 ? .green : .red
                             )
                         } else {
-                            weekMetricCard(
-                                icon: "arrow.left.arrow.right",
-                                label: "Change",
-                                value: "N/A",
-                                accent: .secondary
-                            )
+                            metricCard(icon: "arrow.left.arrow.right", value: "—", title: "Change", accent: .secondary)
                         }
                     }
 
                     // Row 2: Endurance cards
                     if hasEnduranceData {
-                        HStack(spacing: 10) {
-                            weekMetricCard(
+                        sectionHeader("Longest Set (m)")
+                        HStack(spacing: 8) {
+                            metricCard(
                                 icon: "target",
-                                label: "Longest Set",
-                                value: selected?.longestSet != nil ? "\(Int(selected!.longestSet!))m" : "N/A",
-                                accent: .orange
+                                value: selected?.longestSet != nil ? "\(Int(selected!.longestSet!))" : "—",
+                                title: selected?.isCurrent == true ? "This Week" : (selected?.label ?? "—"),
+                                accent: .purple
                             )
-                            weekMetricCard(
+                            metricCard(
                                 icon: "calendar",
-                                label: "Prev Set",
-                                value: previous?.longestSet != nil ? "\(Int(previous!.longestSet!))m" : "N/A",
+                                value: previous?.longestSet != nil ? "\(Int(previous!.longestSet!))" : "—",
+                                title: "Previous",
                                 accent: .secondary
                             )
                             if let change = endurChange, let pct = endurChangePct {
-                                weekMetricCard(
+                                metricCard(
                                     icon: change >= 0 ? "arrow.up.right" : "arrow.down.right",
-                                    label: "Change",
-                                    value: "\(change >= 0 ? "+" : "")\(Int(change))m (\(String(format: "%+.0f%%", pct)))",
-                                    accent: change >= 0 ? .green : .orange
+                                    value: "\(change >= 0 ? "+" : "")\(Int(change))",
+                                    title: "Change",
+                                    subtitle: String(format: "%+.0f%%", pct),
+                                    accent: change >= 0 ? .green : .red
                                 )
                             } else {
-                                weekMetricCard(
-                                    icon: "arrow.left.arrow.right",
-                                    label: "Change",
-                                    value: "N/A",
-                                    accent: .secondary
-                                )
+                                metricCard(icon: "arrow.left.arrow.right", value: "—", title: "Change", accent: .secondary)
                             }
                         }
                     } else {
@@ -479,29 +402,63 @@ struct StatisticsView: View {
         }
     }
 
-    private func weekMetricCard(icon: String, label: String, value: String, accent: Color) -> some View {
-        VStack(spacing: 6) {
+    private func metricCard(icon: String, value: String, title: String, subtitle: String = "", accent: Color) -> some View {
+        let isHighlighted = accent != .secondary
+        return VStack(spacing: 3) {
             Image(systemName: icon)
-                .font(.caption)
+                .font(.system(size: 10))
                 .foregroundStyle(accent)
             Text(value)
-                .font(.subheadline.bold())
-                .foregroundStyle(accent == .teal || accent == .orange ? accent : .primary)
-            Text(label)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundStyle(isHighlighted ? accent : .primary)
+                .minimumScaleFactor(0.5)
+                .lineLimit(1)
+            Text(title)
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+            if !subtitle.isEmpty {
+                Text(subtitle)
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+            }
         }
         .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
+        .padding(.vertical, 8)
+        .padding(.horizontal, 2)
         .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 10))
         .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
     }
 
+    private func sectionHeader(_ text: String) -> some View {
+        Text(text)
+            .font(.caption.bold())
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// Format meters as km with unit suffix (e.g. "4.6km", "800m")
     private func formatKm(_ meters: Double) -> String {
         if meters >= 1000 {
             return String(format: "%.1fkm", meters / 1000)
         }
         return "\(Int(meters))m"
+    }
+
+    /// Format meters as km number only, no unit (e.g. "4.6", "0.8")
+    private func formatKmNum(_ meters: Double) -> String {
+        return String(format: "%.1f", meters / 1000)
+    }
+
+    private func swimHeatColor(_ distanceM: Double) -> Color {
+        if distanceM <= 0 {
+            return Color(.systemGray4).opacity(0.25)
+        } else if distanceM < 1000 {
+            return Color.teal.opacity(0.45)
+        } else if distanceM < 1500 {
+            return Color.blue.opacity(0.65)
+        } else {
+            return Color.blue
+        }
     }
 
     private struct WeekTotalData {
@@ -528,7 +485,7 @@ struct StatisticsView: View {
         }()
 
         var results: [WeekTotalData] = []
-        for weekOffset in -4...0 {
+        for weekOffset in -7...0 {
             guard let weekStart = calendar.date(byAdding: .weekOfYear, value: weekOffset, to: currentWeekStart) else { continue }
             let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
             let weekEndExclusive = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
@@ -543,129 +500,486 @@ struct StatisticsView: View {
         return results
     }
 
-    // MARK: - Endurance Progression
+    private struct DailyPoint: Identifiable {
+        var id: Int { day }
+        let day: Int
+        let cumulativeKm: Double
+        let bestSetM: Double   // running max of longest set (meters)
+        let dayDistanceM: Double // distance swum this specific day (meters)
+    }
 
-    private var enduranceProgressionSection: some View {
-        let enduranceGoal = 3000.0
-        let enduranceData = sessionsWithDetailedData.compactMap { session -> (date: Date, distance: Double)? in
-            guard let set = session.longestSingleSet else { return nil }
-            return (date: session.date, distance: set.distance)
-        }.sorted { $0.date < $1.date }
+    private struct MonthTotalData {
+        let label: String              // "Jan", "Feb 2025", etc.
+        let shortLabel: String         // Always "MMM" format for heat map
+        let samePeriodDistance: Double  // Distance for days 1-X (same-period comparison)
+        let samePeriodLongestSet: Double? // Best set for days 1-X
+        let fullDistance: Double        // Full month total distance
+        let fullLongestSet: Double?     // Full month best set
+        let isCurrent: Bool
+        let dateRange: String          // "Jan 2026"
+        let daysInMonth: Int           // Total days in this month
+        let daysElapsed: Int           // dayOfMonth for current, daysInMonth for completed
+        let color: Color               // Distinct color per month
+        let dailyData: [DailyPoint]    // Day-by-day cumulative data
+    }
 
-        // Calculate PRs (running max)
-        let prDates: Set<Date> = {
-            var maxSoFar = 0.0
-            var dates = Set<Date>()
-            for item in enduranceData {
-                if item.distance > maxSoFar {
-                    maxSoFar = item.distance
-                    dates.insert(item.date)
-                }
+    private static let monthColors: [Color] = [
+        Color(red: 0.231, green: 0.510, blue: 0.965), // Jan - Blue
+        Color(red: 0.659, green: 0.333, blue: 0.969), // Feb - Purple
+        Color(red: 0.063, green: 0.725, blue: 0.506), // Mar - Green
+        Color(red: 0.976, green: 0.451, blue: 0.086), // Apr - Orange
+        Color(red: 0.984, green: 0.749, blue: 0.141), // May - Yellow
+        Color(red: 0.925, green: 0.286, blue: 0.600), // Jun - Pink
+        Color(red: 0.024, green: 0.714, blue: 0.831), // Jul - Cyan
+        Color(red: 0.937, green: 0.267, blue: 0.267), // Aug - Red
+        Color(red: 0.518, green: 0.388, blue: 0.867), // Sep - Indigo
+        Color(red: 0.384, green: 0.647, blue: 0.196), // Oct - Lime
+        Color(red: 0.827, green: 0.420, blue: 0.125), // Nov - Amber
+        Color(red: 0.455, green: 0.565, blue: 0.604), // Dec - Slate
+    ]
+
+    private func buildMonthlyTotals() -> [MonthTotalData] {
+        let calendar = Calendar.current
+        let now = Date.now
+        let currentMonthStart = calendar.dateInterval(of: .month, for: now)?.start ?? now
+        let dayOfMonth = calendar.component(.day, from: now)
+
+        let range = MonthlyTimeRange(rawValue: monthlyTimeRange) ?? .thisYear
+
+        // Compute start month based on selected range
+        let rangeStart: Date = {
+            switch range {
+            case .last6Months:
+                return calendar.dateInterval(of: .month,
+                    for: calendar.date(byAdding: .month, value: -5, to: currentMonthStart) ?? currentMonthStart
+                )?.start ?? currentMonthStart
+            case .thisYear:
+                return calendar.date(from: DateComponents(year: calendar.component(.year, from: now), month: 1, day: 1)) ?? currentMonthStart
+            case .allTime:
+                // Start from first swim or Aug 2025
+                let firstSwim = allSessions.first?.date
+                let aug2025 = calendar.date(from: DateComponents(year: 2025, month: 8, day: 1)) ?? currentMonthStart
+                let earliest = firstSwim != nil ? min(firstSwim!, aug2025) : aug2025
+                return calendar.dateInterval(of: .month, for: earliest)?.start ?? aug2025
             }
-            return dates
         }()
 
-        let currentPR = enduranceData.map(\.distance).max() ?? 0
+        let monthLabelFmt: DateFormatter = {
+            let f = DateFormatter()
+            f.dateFormat = "MMM"
+            return f
+        }()
+        let monthYearFmt: DateFormatter = {
+            let f = DateFormatter()
+            f.dateFormat = "MMM yyyy"
+            return f
+        }()
 
-        return SectionCard(title: "Endurance Progression", icon: "figure.pool.swim") {
-            VStack(alignment: .leading, spacing: 12) {
-                if enduranceData.isEmpty {
-                    Text("Import Apple Watch workouts to track endurance.")
+        let lastMonth = currentMonthStart
+
+        var results: [MonthTotalData] = []
+        var monthStart = rangeStart
+        while monthStart <= lastMonth {
+            guard let monthInterval = calendar.dateInterval(of: .month, for: monthStart) else { break }
+            let monthEnd = monthInterval.end
+            let totalDays = calendar.dateComponents([.day], from: monthStart, to: monthEnd).day ?? 30
+
+            // Full month data
+            let allMonthSessions = allSessions.filter { $0.date >= monthStart && $0.date < monthEnd }
+            let fullDist = allMonthSessions.reduce(0) { $0 + $1.distance }
+            let fullBestSet = allMonthSessions.compactMap { $0.longestSingleSet?.distance }.max()
+
+            // Same-period data: days 1 through dayOfMonth (clamped to month length)
+            let clampedDay = min(dayOfMonth, totalDays)
+            let samePeriodEnd = calendar.date(byAdding: .day, value: clampedDay, to: monthStart) ?? monthEnd
+            let spSessions = allSessions.filter { $0.date >= monthStart && $0.date < samePeriodEnd }
+            let spDist = spSessions.reduce(0) { $0 + $1.distance }
+            let spBestSet = spSessions.compactMap { $0.longestSingleSet?.distance }.max()
+
+            let isCurrent = calendar.isDate(monthStart, equalTo: currentMonthStart, toGranularity: .month)
+            let spansYears = calendar.component(.year, from: rangeStart) != calendar.component(.year, from: now)
+            let label = spansYears ? monthYearFmt.string(from: monthStart) : monthLabelFmt.string(from: monthStart)
+            let dateRange = monthYearFmt.string(from: monthStart)
+            let elapsed = isCurrent ? dayOfMonth : totalDays
+
+            // Compute daily cumulative data
+            var dailyData: [DailyPoint] = []
+            var cumDist: Double = 0
+            var bestSet: Double = 0
+            let lastDay = isCurrent ? dayOfMonth : totalDays
+            for d in 1...lastDay {
+                guard let dayStart = calendar.date(byAdding: .day, value: d - 1, to: monthStart),
+                      let dayEnd = calendar.date(byAdding: .day, value: d, to: monthStart) else { continue }
+                let daySessions = allMonthSessions.filter { $0.date >= dayStart && $0.date < dayEnd }
+                let dayDist = daySessions.reduce(0) { $0 + $1.distance }
+                cumDist += dayDist
+                let dayBest = daySessions.compactMap { $0.longestSingleSet?.distance }.max() ?? 0
+                bestSet = max(bestSet, dayBest)
+                dailyData.append(DailyPoint(day: d, cumulativeKm: cumDist / 1000, bestSetM: bestSet, dayDistanceM: dayDist))
+            }
+
+            let monthNum = calendar.component(.month, from: monthStart) // 1-based
+            let color = Self.monthColors[(monthNum - 1) % Self.monthColors.count]
+
+            results.append(MonthTotalData(
+                label: label,
+                shortLabel: monthLabelFmt.string(from: monthStart),
+                samePeriodDistance: spDist,
+                samePeriodLongestSet: spBestSet,
+                fullDistance: fullDist,
+                fullLongestSet: fullBestSet,
+                isCurrent: isCurrent,
+                dateRange: dateRange,
+                daysInMonth: totalDays,
+                daysElapsed: elapsed,
+                color: color,
+                dailyData: dailyData
+            ))
+
+            guard let next = calendar.date(byAdding: .month, value: 1, to: monthStart) else { break }
+            monthStart = next
+        }
+        return results
+    }
+
+    // MARK: - Monthly Progress
+
+    private var monthlyComparisonSection: some View {
+        let monthlyTotals = buildMonthlyTotals().reversed() as [MonthTotalData]
+        let calendar = Calendar.current
+        let dayOfMonth = calendar.component(.day, from: .now)
+        // Default to first item (latest month) after reversal
+        let safeIndex = min(max(selectedMonthIndex, 0), max(monthlyTotals.count - 1, 0))
+        let selected = monthlyTotals.indices.contains(safeIndex) ? monthlyTotals[safeIndex] : nil
+        // Previous = chronologically earlier = next index in reversed array
+        let previous: MonthTotalData? = safeIndex + 1 < monthlyTotals.count ? monthlyTotals[safeIndex + 1] : nil
+        let hasEnduranceData = monthlyTotals.contains { $0.fullLongestSet != nil }
+        let daysRemaining = max(0, (selected?.daysInMonth ?? 30) - dayOfMonth)
+
+        // Distance change (same-period vs previous month's same-period)
+        let distChange: Double? = {
+            guard let sel = selected, let prev = previous, prev.samePeriodDistance > 0 else { return nil }
+            return sel.samePeriodDistance - prev.samePeriodDistance
+        }()
+        let distChangePct: Double? = {
+            guard let change = distChange, let prev = previous, prev.samePeriodDistance > 0 else { return nil }
+            return change / prev.samePeriodDistance * 100
+        }()
+
+        // Endurance change (same-period)
+        let endurChange: Double? = {
+            guard let sel = selected?.samePeriodLongestSet, let prev = previous?.samePeriodLongestSet, prev > 0 else { return nil }
+            return sel - prev
+        }()
+        let endurChangePct: Double? = {
+            guard let change = endurChange, let prev = previous?.samePeriodLongestSet, prev > 0 else { return nil }
+            return change / prev * 100
+        }()
+
+        // "To beat previous month" targets (previous month's FULL total vs selected same-period)
+        let distToBeat: Double? = {
+            guard let sel = selected, let prev = previous, prev.fullDistance > 0 else { return nil }
+            return prev.fullDistance - sel.samePeriodDistance
+        }()
+        let endurToBeat: Double? = {
+            guard let sel = selected?.samePeriodLongestSet, let prev = previous?.fullLongestSet, prev > 0 else { return nil }
+            return prev - sel
+        }()
+
+        return SectionCard(title: "Monthly Progress", icon: "calendar.badge.clock") {
+            VStack(alignment: .leading, spacing: 16) {
+                // Time range filter
+                Picker("Range", selection: Binding(
+                    get: { MonthlyTimeRange(rawValue: monthlyTimeRange) ?? .thisYear },
+                    set: { newValue in
+                        monthlyTimeRange = newValue.rawValue
+                        // Reset to latest month (index 0 in reversed order)
+                        selectedMonthIndex = 0
+                    }
+                )) {
+                    ForEach(MonthlyTimeRange.allCases, id: \.self) { range in
+                        Text(range.rawValue).tag(range)
+                    }
+                }
+                .pickerStyle(.segmented)
+
+                if monthlyTotals.filter({ $0.fullDistance > 0 }).count < 2 {
+                    Text("Need more months to show trends.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 20)
                 } else {
-                    Chart {
-                        // Goal line at 3,000m
-                        RuleMark(y: .value("Goal", enduranceGoal))
-                            .foregroundStyle(.green.opacity(0.5))
-                            .lineStyle(StrokeStyle(lineWidth: 1, dash: [5, 3]))
-                            .annotation(position: .top, alignment: .trailing) {
-                                Text("3,000m goal")
-                                    .font(.caption2)
-                                    .foregroundStyle(.green)
-                            }
-
-                        // Line chart
-                        ForEach(enduranceData, id: \.date) { item in
-                            LineMark(
-                                x: .value("Date", item.date),
-                                y: .value("Distance", item.distance)
-                            )
-                            .foregroundStyle(.blue)
-                            .interpolationMethod(.catmullRom)
-
-                            // PR points highlighted
-                            if prDates.contains(item.date) {
-                                PointMark(
-                                    x: .value("Date", item.date),
-                                    y: .value("Distance", item.distance)
-                                )
-                                .foregroundStyle(.orange)
-                                .symbolSize(50)
-                            } else {
-                                PointMark(
-                                    x: .value("Date", item.date),
-                                    y: .value("Distance", item.distance)
-                                )
-                                .foregroundStyle(.blue)
-                                .symbolSize(20)
-                            }
-                        }
-                    }
-                    .chartYAxisLabel("meters")
-                    .chartYScale(domain: 0...(max(enduranceGoal, currentPR) * 1.1))
-                    .frame(height: 200)
-
-                    // Stats row
-                    HStack(spacing: 24) {
-                        VStack(spacing: 4) {
-                            Text("PR Set")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(Int(currentPR))m")
-                                .font(.subheadline.bold())
-                                .foregroundStyle(currentPR > 1600 ? .green : currentPR >= 800 ? .blue : .orange)
-                        }
-                        VStack(spacing: 4) {
-                            Text("Goal")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                            Text("\(Int(enduranceGoal))m")
-                                .font(.subheadline.bold())
-                        }
-                        if enduranceData.count >= 2 {
-                            let trend = enduranceData.last!.distance - enduranceData.first!.distance
-                            VStack(spacing: 4) {
-                                Text("Trend")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                HStack(spacing: 2) {
-                                    Image(systemName: trend >= 0 ? "arrow.up.right" : "arrow.down.right")
-                                    Text(trend >= 0 ? "+\(Int(trend))m" : "\(Int(trend))m")
+                    // Month legend (tappable, scrollable)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 2) {
+                            ForEach(monthlyTotals.indices, id: \.self) { i in
+                                let month = monthlyTotals[i]
+                                let isSelected = i == safeIndex
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedMonthIndex = i
+                                    }
+                                    let generator = UIImpactFeedbackGenerator(style: .light)
+                                    generator.impactOccurred()
+                                } label: {
+                                    HStack(spacing: 3) {
+                                        Circle().fill(month.color).frame(width: 7, height: 7)
+                                        Text(month.label)
+                                            .font(.caption2)
+                                            .fontWeight(isSelected ? .bold : .regular)
+                                            .foregroundStyle(isSelected ? .primary : .secondary)
+                                    }
+                                    .fixedSize()
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 3)
+                                    .background(isSelected ? month.color.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 6))
                                 }
-                                .font(.subheadline.bold())
-                                .foregroundStyle(trend >= 0 ? .green : .orange)
+                                .buttonStyle(.plain)
                             }
                         }
                     }
-                    .frame(maxWidth: .infinity)
 
-                    // Legend
-                    HStack(spacing: 12) {
-                        legendDot(color: .orange, label: "PR")
-                        legendDot(color: .blue, label: "Session")
-                        HStack(spacing: 4) {
-                            Rectangle()
-                                .fill(.green.opacity(0.5))
-                                .frame(width: 16, height: 2)
-                            Text("Goal")
+                    // Distance cumulative chart
+                    Text("Daily cumulative distance")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+
+                    Chart {
+                        ForEach(monthlyTotals.indices, id: \.self) { i in
+                            let month = monthlyTotals[i]
+                            let isSelected = i == safeIndex
+                            ForEach(month.dailyData) { point in
+                                LineMark(
+                                    x: .value("Day", point.day),
+                                    y: .value("km", point.cumulativeKm),
+                                    series: .value("Month", month.label)
+                                )
+                                .foregroundStyle(month.color.opacity(isSelected ? 1.0 : 0.3))
+                                .lineStyle(StrokeStyle(lineWidth: isSelected ? 3.5 : 2))
+                                .interpolationMethod(.catmullRom)
+                            }
                         }
                     }
-                    .font(.caption2)
+                    .chartXScale(domain: 1...31)
+                    .chartYScale(domain: .automatic(includesZero: true))
+                    .chartXAxis {
+                        AxisMarks(values: [1, 7, 14, 21, 28, 31]) { value in
+                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
+                                .foregroundStyle(Color(.systemGray4))
+                            AxisValueLabel()
+                                .font(.caption2)
+                        }
+                    }
+                    .chartYAxis {
+                        AxisMarks(position: .leading) { value in
+                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
+                                .foregroundStyle(Color(.systemGray4))
+                            AxisValueLabel {
+                                if let km = value.as(Double.self) {
+                                    Text(km.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(km))" : String(format: "%.1f", km))
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    .frame(height: 160)
+
+                    // Swim frequency heat map
+                    Text("Swim Frequency")
+                        .font(.caption2.bold())
+                        .foregroundStyle(.secondary)
+
+                    VStack(alignment: .leading, spacing: 8) {
+                        // Day markers
+                        HStack(spacing: 0) {
+                            Text("")
+                                .font(.system(size: 9))
+                                .frame(width: 32, alignment: .leading)
+                            ForEach(1...31, id: \.self) { day in
+                                if [1, 7, 14, 21, 28].contains(day) {
+                                    Text("\(day)")
+                                        .font(.system(size: 8))
+                                        .foregroundStyle(.tertiary)
+                                        .fixedSize()
+                                        .frame(width: 10, alignment: .center)
+                                } else {
+                                    Color.clear.frame(width: 10)
+                                }
+                            }
+                        }
+
+                        // Month rows
+                        ForEach(monthlyTotals.indices, id: \.self) { i in
+                            let month = monthlyTotals[i]
+                            let isSelected = i == safeIndex
+                            HStack(spacing: 0) {
+                                Text(month.shortLabel)
+                                    .font(.system(size: 9, weight: isSelected ? .bold : .regular))
+                                    .foregroundStyle(isSelected ? .primary : .secondary)
+                                    .frame(width: 32, alignment: .leading)
+                                ForEach(1...31, id: \.self) { day in
+                                    if day <= month.daysElapsed {
+                                        let point = month.dailyData.first { $0.day == day }
+                                        let dist = point?.dayDistanceM ?? 0
+                                        Circle()
+                                            .fill(swimHeatColor(dist))
+                                            .frame(width: 9, height: 9)
+                                            .padding(.horizontal, 0.5)
+                                    } else if day <= month.daysInMonth {
+                                        Circle()
+                                            .strokeBorder(Color(.systemGray4), lineWidth: 0.75)
+                                            .frame(width: 9, height: 9)
+                                            .padding(.horizontal, 0.5)
+                                    } else {
+                                        Color.clear.frame(width: 10, height: 9)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Legend
+                        HStack(spacing: 12) {
+                            HStack(spacing: 4) {
+                                Circle()
+                                    .strokeBorder(Color(.systemGray4), lineWidth: 1)
+                                    .frame(width: 9, height: 9)
+                                Text("Rest")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.secondary)
+                            }
+                            HStack(spacing: 4) {
+                                Circle().fill(Color.teal.opacity(0.45)).frame(width: 9, height: 9)
+                                Text("<1km")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.secondary)
+                            }
+                            HStack(spacing: 4) {
+                                Circle().fill(Color.blue.opacity(0.65)).frame(width: 9, height: 9)
+                                Text("1–1.5km")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.secondary)
+                            }
+                            HStack(spacing: 4) {
+                                Circle().fill(Color.blue).frame(width: 9, height: 9)
+                                Text(">1.5km")
+                                    .font(.system(size: 9))
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.top, 4)
+                    }
+
+                    // Row 1: Distance cards
+                    sectionHeader("Distance (km)")
+                    HStack(spacing: 8) {
+                        metricCard(
+                            icon: "figure.pool.swim",
+                            value: formatKmNum(selected?.samePeriodDistance ?? 0),
+                            title: selected?.label ?? "—",
+                            subtitle: "1–\(dayOfMonth)d",
+                            accent: .teal
+                        )
+                        metricCard(
+                            icon: "calendar",
+                            value: previous != nil ? formatKmNum(previous!.samePeriodDistance) : "—",
+                            title: previous?.label ?? "Prev",
+                            subtitle: "1–\(dayOfMonth)d",
+                            accent: .secondary
+                        )
+                        if let change = distChange, let pct = distChangePct {
+                            metricCard(
+                                icon: change >= 0 ? "arrow.up.right" : "arrow.down.right",
+                                value: String(format: "%+.1f", change / 1000),
+                                title: "Change",
+                                subtitle: String(format: "%+.0f%%", pct),
+                                accent: change >= 0 ? .green : .red
+                            )
+                        } else {
+                            metricCard(icon: "arrow.left.arrow.right", value: "—", title: "Change", accent: .secondary)
+                        }
+                        if let toBeat = distToBeat, let prev = previous {
+                            if toBeat > 0 {
+                                metricCard(
+                                    icon: "flag.checkered",
+                                    value: "+\(formatKmNum(toBeat))",
+                                    title: "To Beat",
+                                    subtitle: "\(daysRemaining)d left",
+                                    accent: .yellow
+                                )
+                            } else {
+                                metricCard(
+                                    icon: "checkmark.circle",
+                                    value: "+\(formatKmNum(abs(toBeat)))",
+                                    title: "Beat \(prev.label)!",
+                                    accent: .green
+                                )
+                            }
+                        }
+                    }
+
+                    // Row 2: Endurance cards
+                    if hasEnduranceData {
+                        sectionHeader("Longest Set (m)")
+                        HStack(spacing: 8) {
+                            metricCard(
+                                icon: "target",
+                                value: selected?.samePeriodLongestSet != nil ? "\(Int(selected!.samePeriodLongestSet!))" : "—",
+                                title: selected?.label ?? "—",
+                                subtitle: "1–\(dayOfMonth)d",
+                                accent: .purple
+                            )
+                            metricCard(
+                                icon: "calendar",
+                                value: previous?.samePeriodLongestSet != nil ? "\(Int(previous!.samePeriodLongestSet!))" : "—",
+                                title: previous?.label ?? "Prev",
+                                subtitle: "1–\(dayOfMonth)d",
+                                accent: .secondary
+                            )
+                            if let change = endurChange, let pct = endurChangePct {
+                                metricCard(
+                                    icon: change >= 0 ? "arrow.up.right" : "arrow.down.right",
+                                    value: "\(change >= 0 ? "+" : "")\(Int(change))",
+                                    title: "Change",
+                                    subtitle: String(format: "%+.0f%%", pct),
+                                    accent: change >= 0 ? .green : .red
+                                )
+                            } else {
+                                metricCard(icon: "arrow.left.arrow.right", value: "—", title: "Change", accent: .secondary)
+                            }
+                            if let toBeat = endurToBeat, let prev = previous, prev.fullLongestSet != nil {
+                                if toBeat > 0 {
+                                    metricCard(
+                                        icon: "flag.checkered",
+                                        value: "+\(Int(toBeat))",
+                                        title: "To Beat",
+                                        subtitle: "\(daysRemaining)d left",
+                                        accent: .yellow
+                                    )
+                                } else {
+                                    metricCard(
+                                        icon: "checkmark.circle",
+                                        value: "+\(Int(abs(toBeat)))",
+                                        title: "Beat \(prev.label)!",
+                                        accent: .green
+                                    )
+                                }
+                            }
+                        }
+                    } else {
+                        HStack(spacing: 6) {
+                            Image(systemName: "applewatch")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text("Import Apple Watch workouts to track endurance")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
             }
+            .animation(.easeInOut(duration: 0.2), value: selectedMonthIndex)
         }
     }
 
@@ -732,10 +1046,10 @@ struct StatisticsView: View {
                                     Text(String(format: "%+.0f", trend))
                                 }
                                 .font(.subheadline.bold())
-                                .foregroundStyle(trend <= 0 ? .green : .orange)
+                                .foregroundStyle(trend <= 0 ? .green : .red)
                                 Text(trend <= 0 ? "Improving" : "Declining")
                                     .font(.caption2)
-                                    .foregroundStyle(trend <= 0 ? .green : .orange)
+                                    .foregroundStyle(trend <= 0 ? .green : .red)
                             }
                         }
                     }
@@ -756,7 +1070,7 @@ struct StatisticsView: View {
     // MARK: - Section 4: Pace Analysis
 
     private var paceAnalysisSection: some View {
-        let paceData: [(date: Date, pace: Double)] = sessions.compactMap { session in
+        let paceData: [(date: Date, pace: Double)] = allSessions.compactMap { session in
             guard session.distance > 0 else { return nil }
             let pace = (session.duration * 60) / (session.distance / 100) / 60 // min per 100m
             return (date: session.date, pace: pace)
@@ -824,7 +1138,7 @@ struct StatisticsView: View {
                                     Text(trend <= 0 ? "Faster" : "Slower")
                                 }
                                 .font(.subheadline.bold())
-                                .foregroundStyle(trend <= 0 ? .green : .orange)
+                                .foregroundStyle(trend <= 0 ? .green : .red)
                             }
                         }
                     }
@@ -997,7 +1311,7 @@ struct StatisticsView: View {
                                 .font(.subheadline.bold())
                         }
                     }
-                    if let longest = sessions.map(\.longestContinuousDistance).max() {
+                    if let longest = allSessions.map(\.longestContinuousDistance).max() {
                         VStack(spacing: 4) {
                             Text("Longest Continuous")
                                 .font(.caption)
@@ -1007,10 +1321,10 @@ struct StatisticsView: View {
                         }
                     }
                     VStack(spacing: 4) {
-                        Text("This Period")
+                        Text("Total")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("\(sessions.count) swims")
+                        Text("\(allSessions.count) swims")
                             .font(.subheadline.bold())
                     }
                 }
@@ -1055,20 +1369,10 @@ struct StatisticsView: View {
 
     // MARK: - Data Helpers
 
-    private func weeklyDistances() -> [(weekStart: Date, distance: Double)] {
-        let calendar = Calendar.current
-        var weekly: [Date: Double] = [:]
-        for session in sessions {
-            let weekStart = calendar.dateInterval(of: .weekOfYear, for: session.date)?.start ?? session.date
-            weekly[weekStart, default: 0] += session.distance
-        }
-        return weekly.map { (weekStart: $0.key, distance: $0.value) }.sorted { $0.weekStart < $1.weekStart }
-    }
-
     private func monthlyDistances() -> [(monthStart: Date, distance: Double)] {
         let calendar = Calendar.current
         var monthly: [Date: Double] = [:]
-        for session in sessions {
+        for session in allSessions {
             let monthStart = calendar.dateInterval(of: .month, for: session.date)?.start ?? session.date
             monthly[monthStart, default: 0] += session.distance
         }
@@ -1078,7 +1382,7 @@ struct StatisticsView: View {
     private func weeklySwimFrequency() -> [(weekStart: Date, count: Int)] {
         let calendar = Calendar.current
         var weekly: [Date: Int] = [:]
-        for session in sessions {
+        for session in allSessions {
             let weekStart = calendar.dateInterval(of: .weekOfYear, for: session.date)?.start ?? session.date
             weekly[weekStart, default: 0] += 1
         }

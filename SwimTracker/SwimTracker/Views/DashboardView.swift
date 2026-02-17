@@ -49,6 +49,7 @@ func formatPace(_ minutesPer100m: Double) -> String {
 enum ImportDateRange: String, CaseIterable {
     case last7 = "Last 7 Days"
     case last30 = "Last 30 Days"
+    case sinceAug2025 = "Since Aug 2025"
     case since2026 = "Since January 2026"
     case allTime = "All Time"
 
@@ -56,6 +57,7 @@ enum ImportDateRange: String, CaseIterable {
         switch self {
         case .last7: return Calendar.current.date(byAdding: .day, value: -7, to: .now) ?? .now
         case .last30: return Calendar.current.date(byAdding: .day, value: -30, to: .now) ?? .now
+        case .sinceAug2025: return Calendar.current.date(from: DateComponents(year: 2025, month: 8, day: 1)) ?? .now
         case .since2026: return Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1)) ?? .now
         case .allTime: return Calendar.current.date(from: DateComponents(year: 2015, month: 1, day: 1)) ?? .now
         }
@@ -224,8 +226,8 @@ struct DashboardView: View {
             .task {
                 if healthKitEnabled {
                     await healthKitManager.requestAuthorization()
-                    let jan2026 = ImportDateRange.since2026.startDate
-                    await healthKitManager.fetchSwimWorkouts(from: jan2026, to: .now)
+                    let aug2025 = ImportDateRange.sinceAug2025.startDate
+                    await healthKitManager.fetchSwimWorkouts(from: aug2025, to: .now)
                 }
             }
         }
@@ -362,14 +364,14 @@ struct DashboardView: View {
             // On track indicator
             HStack(spacing: 6) {
                 Image(systemName: isOnTrack ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                    .foregroundStyle(isOnTrack ? .green : .orange)
+                    .foregroundStyle(isOnTrack ? .green : .red)
                 Text(isOnTrack ? "On track for Aug 30, 2026" : "Need to accelerate training")
                     .font(.caption.bold())
-                    .foregroundStyle(isOnTrack ? .green : .orange)
+                    .foregroundStyle(isOnTrack ? .green : .red)
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 12)
-            .background((isOnTrack ? Color.green : Color.orange).opacity(0.1), in: Capsule())
+            .background((isOnTrack ? Color.green : Color.red).opacity(0.1), in: Capsule())
 
             // Endurance Capacity
             enduranceCapacitySection
@@ -407,7 +409,7 @@ struct DashboardView: View {
         let enduranceColor: Color = {
             if prDistance > 1600 { return .green }
             if prDistance >= 800 { return .blue }
-            return .orange
+            return .purple
         }()
 
         return Group {
@@ -522,7 +524,7 @@ struct HealthKitImportSheet: View {
     @Query(sort: \SwimSession.date, order: .reverse) private var sessions: [SwimSession]
     @Query(sort: \Workout.scheduledDate) private var upcomingWorkouts: [Workout]
 
-    @State private var dateRange: ImportDateRange = .last7
+    @State private var dateRange: ImportDateRange = .sinceAug2025
     @State private var selectedWorkout: HKWorkoutProxy?
     @State private var importDifficulty: Int = 5
     @State private var importNotes: String = ""
@@ -929,8 +931,8 @@ struct HealthKitImportSheet: View {
     }
 
     private func startBulkImport() {
-        // Limit to 50 at a time
-        let workoutsToImport = Array(unimportedWorkouts.prefix(50))
+        // Limit to 200 at a time
+        let workoutsToImport = Array(unimportedWorkouts.prefix(200))
         guard !workoutsToImport.isEmpty else { return }
 
         isBulkImporting = true
