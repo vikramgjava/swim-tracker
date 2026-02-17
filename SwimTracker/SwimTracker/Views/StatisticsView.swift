@@ -26,6 +26,7 @@ struct StatisticsView: View {
     @Binding var isDarkMode: Bool
     @Query(sort: \SwimSession.date) private var allSessions: [SwimSession]
     @State private var timeRange: TimeRange = .last60
+    @State private var selectedWeekIndex: Int = 4 // 0-4, default to current week (index 4)
 
     private var sessions: [SwimSession] {
         guard let start = timeRange.startDate else { return allSessions }
@@ -90,6 +91,7 @@ struct StatisticsView: View {
                                     .padding(.top, 40)
                             } else {
                                 distanceTrendsSection
+                                weeklyComparisonSection
                                 if hasDetailedData { enduranceProgressionSection }
                                 if hasDetailedData { efficiencyMetricsSection }
                                 paceAnalysisSection
@@ -157,6 +159,388 @@ struct StatisticsView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Weekly Progress
+
+    private var weeklyComparisonSection: some View {
+        let weeklyTotals = buildWeeklyTotals()
+        let safeIndex = min(selectedWeekIndex, weeklyTotals.count - 1)
+        let selected = weeklyTotals.indices.contains(safeIndex) ? weeklyTotals[safeIndex] : nil
+        let previous: WeekTotalData? = safeIndex > 0 ? weeklyTotals[safeIndex - 1] : nil
+        let hasEnduranceData = weeklyTotals.contains { $0.longestSet != nil }
+
+        // Distance change
+        let distChange: Double? = {
+            guard let sel = selected, let prev = previous, prev.distance > 0 else { return nil }
+            return sel.distance - prev.distance
+        }()
+        let distChangePct: Double? = {
+            guard let change = distChange, let prev = previous, prev.distance > 0 else { return nil }
+            return change / prev.distance * 100
+        }()
+
+        // Endurance change
+        let endurChange: Double? = {
+            guard let sel = selected?.longestSet, let prev = previous?.longestSet, prev > 0 else { return nil }
+            return sel - prev
+        }()
+        let endurChangePct: Double? = {
+            guard let change = endurChange, let prev = previous?.longestSet, prev > 0 else { return nil }
+            return change / prev * 100
+        }()
+
+        return SectionCard(title: "Weekly Progress", icon: "chart.line.uptrend.xyaxis") {
+            VStack(alignment: .leading, spacing: 16) {
+                if weeklyTotals.filter({ $0.distance > 0 }).count < 2 {
+                    Text("Complete more weeks to see trends.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 20)
+                } else {
+                    // Legend with axis unit labels
+                    HStack {
+                        Text("km")
+                            .font(.caption2.bold())
+                            .foregroundStyle(.teal)
+                        HStack(spacing: 12) {
+                            HStack(spacing: 4) {
+                                Circle().fill(.teal).frame(width: 8, height: 8)
+                                Text("Distance")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                            if hasEnduranceData {
+                                HStack(spacing: 4) {
+                                    Circle().fill(.orange).frame(width: 8, height: 8)
+                                    Text("Longest Set")
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            HStack(spacing: 4) {
+                                Rectangle()
+                                    .fill(.secondary.opacity(0.4))
+                                    .frame(width: 14, height: 1.5)
+                                    .overlay {
+                                        Rectangle()
+                                            .stroke(style: StrokeStyle(lineWidth: 1.5, dash: [3, 2]))
+                                            .foregroundStyle(.secondary.opacity(0.6))
+                                    }
+                                Text("Avg")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .frame(maxWidth: .infinity)
+                        if hasEnduranceData {
+                            Text("m")
+                                .font(.caption2.bold())
+                                .foregroundStyle(.orange)
+                        }
+                    }
+
+                    // Compute distance axis range (km)
+                    let distances = weeklyTotals.map { $0.distance / 1000 }
+                    let distMin = distances.filter { $0 > 0 }.min() ?? 0
+                    let distMax = distances.max() ?? 1
+                    let distRange = distMax - distMin
+                    let distStep: Double = distRange < 1 ? 0.25 : distRange < 2 ? 0.5 : distRange < 5 ? 1.0 : 2.0
+                    let distYMin = max(0, floor((distMin - distStep * 0.5) / distStep) * distStep)
+                    let distYMax = ceil((distMax + distStep * 0.5) / distStep) * distStep
+
+                    // Compute endurance axis range (meters)
+                    let enduranceValues = weeklyTotals.compactMap { $0.longestSet }
+                    let endurMax = enduranceValues.max() ?? 1000
+                    // Round up to a clean ceiling for the right axis
+                    let endurCeil: Double = {
+                        if endurMax <= 500 { return ceil(endurMax / 100) * 100 }
+                        if endurMax <= 2000 { return ceil(endurMax / 500) * 500 }
+                        return ceil(endurMax / 1000) * 1000
+                    }()
+                    let endurStep: Double = {
+                        if endurCeil <= 500 { return 100 }
+                        if endurCeil <= 2000 { return 500 }
+                        return 1000
+                    }()
+
+                    // Map endurance (meters) → chart Y (km scale)
+                    // endurCeil meters maps to distYMax km
+                    let endurToChart: (Double) -> Double = { meters in
+                        guard endurCeil > 0, distYMax > 0 else { return 0 }
+                        return (meters / endurCeil) * distYMax
+                    }
+
+                    // 4-week averages (exclude current incomplete week)
+                    let completedWeeks = weeklyTotals.filter { !$0.isCurrent }
+                    let avgDistanceKm: Double? = {
+                        let withData = completedWeeks.filter { $0.distance > 0 }
+                        guard !withData.isEmpty else { return nil }
+                        return withData.map { $0.distance / 1000 }.reduce(0, +) / Double(withData.count)
+                    }()
+                    let avgEnduranceM: Double? = {
+                        let withData = completedWeeks.compactMap { $0.longestSet }.filter { $0 > 0 }
+                        guard !withData.isEmpty else { return nil }
+                        return withData.reduce(0, +) / Double(withData.count)
+                    }()
+
+                    Chart {
+                        // Average reference lines (behind main lines)
+                        if let avgDist = avgDistanceKm {
+                            RuleMark(y: .value("Value", avgDist))
+                                .foregroundStyle(.teal.opacity(0.4))
+                                .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                        }
+                        if hasEnduranceData, let avgEndur = avgEnduranceM {
+                            RuleMark(y: .value("Value", endurToChart(avgEndur)))
+                                .foregroundStyle(.orange.opacity(0.4))
+                                .lineStyle(StrokeStyle(lineWidth: 1.5, dash: [5, 3]))
+                        }
+
+                        // Distance line (teal, solid)
+                        ForEach(weeklyTotals.indices, id: \.self) { i in
+                            let week = weeklyTotals[i]
+                            let isSelected = i == safeIndex
+                            LineMark(
+                                x: .value("Week", week.label),
+                                y: .value("Value", week.distance / 1000),
+                                series: .value("Series", "Distance")
+                            )
+                            .foregroundStyle(.teal)
+                            .interpolationMethod(.catmullRom)
+                            .lineStyle(StrokeStyle(lineWidth: 3))
+
+                            PointMark(
+                                x: .value("Week", week.label),
+                                y: .value("Value", week.distance / 1000)
+                            )
+                            .foregroundStyle(isSelected ? .teal : .teal.opacity(0.5))
+                            .symbolSize(isSelected ? 80 : 30)
+                        }
+
+                        // Endurance line (orange, dashed) — normalized to distance Y-axis
+                        if hasEnduranceData {
+                            ForEach(weeklyTotals.indices, id: \.self) { i in
+                                let week = weeklyTotals[i]
+                                let isSelected = i == safeIndex
+                                let endurValue = week.longestSet ?? 0
+                                let chartY = endurToChart(endurValue)
+                                LineMark(
+                                    x: .value("Week", week.label),
+                                    y: .value("Value", chartY),
+                                    series: .value("Series", "Endurance")
+                                )
+                                .foregroundStyle(.orange)
+                                .interpolationMethod(.catmullRom)
+                                .lineStyle(StrokeStyle(lineWidth: 3, dash: [6, 3]))
+
+                                PointMark(
+                                    x: .value("Week", week.label),
+                                    y: .value("Value", chartY)
+                                )
+                                .foregroundStyle(endurValue > 0 ? (isSelected ? .orange : .orange.opacity(0.5)) : .clear)
+                                .symbolSize(endurValue > 0 ? (isSelected ? 80 : 30) : 0)
+                            }
+                        }
+                    }
+                    .chartYScale(domain: distYMin...distYMax)
+                    .chartYAxis {
+                        // Left axis: Distance (km) — teal
+                        AxisMarks(position: .leading, values: .stride(by: distStep)) { value in
+                            AxisGridLine(stroke: StrokeStyle(lineWidth: 0.5, dash: [3, 3]))
+                                .foregroundStyle(Color(.systemGray4))
+                            AxisValueLabel {
+                                if let km = value.as(Double.self) {
+                                    Text(km.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(km))" : String(format: "%.1f", km))
+                                        .font(.caption2)
+                                        .foregroundStyle(.teal)
+                                }
+                            }
+                        }
+                        // Right axis: Endurance (m) — orange
+                        if hasEnduranceData {
+                            AxisMarks(position: .trailing, values: .stride(by: distStep)) { value in
+                                AxisValueLabel {
+                                    if let chartKm = value.as(Double.self), distYMax > 0 {
+                                        let meters = (chartKm / distYMax) * endurCeil
+                                        Text("\(Int(meters))")
+                                            .font(.caption2)
+                                            .foregroundStyle(.orange)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    .chartXAxis {
+                        AxisMarks { _ in
+                            AxisValueLabel()
+                                .font(.caption2)
+                        }
+                    }
+                    .chartOverlay { proxy in
+                        GeometryReader { geo in
+                            Rectangle()
+                                .fill(.clear)
+                                .contentShape(Rectangle())
+                                .onTapGesture { location in
+                                    let plotArea = geo[proxy.plotFrame!]
+                                    let relativeX = location.x - plotArea.origin.x
+                                    let count = weeklyTotals.count
+                                    guard count > 0 else { return }
+                                    let segmentWidth = plotArea.width / CGFloat(count)
+                                    let tappedIndex = Int(relativeX / segmentWidth)
+                                    let clampedIndex = max(0, min(count - 1, tappedIndex))
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedWeekIndex = clampedIndex
+                                    }
+                                    let generator = UIImpactFeedbackGenerator(style: .light)
+                                    generator.impactOccurred()
+                                }
+                        }
+                    }
+                    .frame(height: 140)
+
+                    // Row 1: Distance cards
+                    HStack(spacing: 10) {
+                        weekMetricCard(
+                            icon: "figure.pool.swim",
+                            label: selected?.isCurrent == true ? "This Week" : (selected?.dateRange ?? selected?.label ?? "—"),
+                            value: formatKm(selected?.distance ?? 0),
+                            accent: .teal
+                        )
+                        weekMetricCard(
+                            icon: "calendar",
+                            label: "Previous",
+                            value: previous != nil ? formatKm(previous!.distance) : "N/A",
+                            accent: .secondary
+                        )
+                        if let change = distChange, let pct = distChangePct {
+                            weekMetricCard(
+                                icon: change >= 0 ? "arrow.up.right" : "arrow.down.right",
+                                label: "Change",
+                                value: "\(formatKm(abs(change))) (\(String(format: "%+.0f%%", pct)))",
+                                accent: change >= 0 ? .green : .orange
+                            )
+                        } else {
+                            weekMetricCard(
+                                icon: "arrow.left.arrow.right",
+                                label: "Change",
+                                value: "N/A",
+                                accent: .secondary
+                            )
+                        }
+                    }
+
+                    // Row 2: Endurance cards
+                    if hasEnduranceData {
+                        HStack(spacing: 10) {
+                            weekMetricCard(
+                                icon: "target",
+                                label: "Longest Set",
+                                value: selected?.longestSet != nil ? "\(Int(selected!.longestSet!))m" : "N/A",
+                                accent: .orange
+                            )
+                            weekMetricCard(
+                                icon: "calendar",
+                                label: "Prev Set",
+                                value: previous?.longestSet != nil ? "\(Int(previous!.longestSet!))m" : "N/A",
+                                accent: .secondary
+                            )
+                            if let change = endurChange, let pct = endurChangePct {
+                                weekMetricCard(
+                                    icon: change >= 0 ? "arrow.up.right" : "arrow.down.right",
+                                    label: "Change",
+                                    value: "\(change >= 0 ? "+" : "")\(Int(change))m (\(String(format: "%+.0f%%", pct)))",
+                                    accent: change >= 0 ? .green : .orange
+                                )
+                            } else {
+                                weekMetricCard(
+                                    icon: "arrow.left.arrow.right",
+                                    label: "Change",
+                                    value: "N/A",
+                                    accent: .secondary
+                                )
+                            }
+                        }
+                    } else {
+                        HStack(spacing: 6) {
+                            Image(systemName: "applewatch")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            Text("Import Apple Watch workouts to track endurance")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: selectedWeekIndex)
+        }
+    }
+
+    private func weekMetricCard(icon: String, label: String, value: String, accent: Color) -> some View {
+        VStack(spacing: 6) {
+            Image(systemName: icon)
+                .font(.caption)
+                .foregroundStyle(accent)
+            Text(value)
+                .font(.subheadline.bold())
+                .foregroundStyle(accent == .teal || accent == .orange ? accent : .primary)
+            Text(label)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 10))
+        .shadow(color: .black.opacity(0.06), radius: 4, y: 1)
+    }
+
+    private func formatKm(_ meters: Double) -> String {
+        if meters >= 1000 {
+            return String(format: "%.1fkm", meters / 1000)
+        }
+        return "\(Int(meters))m"
+    }
+
+    private struct WeekTotalData {
+        let label: String
+        let distance: Double
+        let longestSet: Double? // best longest single set that week (meters), nil if no detailed data
+        let isCurrent: Bool
+        let dateRange: String // e.g. "Feb 3–9"
+    }
+
+    private func buildWeeklyTotals() -> [WeekTotalData] {
+        let calendar = Calendar.current
+        let currentWeekStart = calendar.dateInterval(of: .weekOfYear, for: .now)?.start ?? .now
+
+        let monthDayFmt: DateFormatter = {
+            let f = DateFormatter()
+            f.dateFormat = "MMM d"
+            return f
+        }()
+        let dayFmt: DateFormatter = {
+            let f = DateFormatter()
+            f.dateFormat = "d"
+            return f
+        }()
+
+        var results: [WeekTotalData] = []
+        for weekOffset in -4...0 {
+            guard let weekStart = calendar.date(byAdding: .weekOfYear, value: weekOffset, to: currentWeekStart) else { continue }
+            let weekEnd = calendar.date(byAdding: .day, value: 6, to: weekStart) ?? weekStart
+            let weekEndExclusive = calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+            let weekSessions = allSessions.filter { $0.date >= weekStart && $0.date < weekEndExclusive }
+            let total = weekSessions.reduce(0) { $0 + $1.distance }
+            let bestLongestSet = weekSessions.compactMap { $0.longestSingleSet?.distance }.max()
+            let isCurrent = weekOffset == 0
+            let label = isCurrent ? "Now" : "W\(-weekOffset)"
+            let dateRange = "\(monthDayFmt.string(from: weekStart))–\(dayFmt.string(from: weekEnd))"
+            results.append(WeekTotalData(label: label, distance: total, longestSet: bestLongestSet, isCurrent: isCurrent, dateRange: dateRange))
+        }
+        return results
     }
 
     // MARK: - Endurance Progression
