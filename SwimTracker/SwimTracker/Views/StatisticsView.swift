@@ -451,13 +451,13 @@ struct StatisticsView: View {
 
     private func swimHeatColor(_ distanceM: Double) -> Color {
         if distanceM <= 0 {
-            return Color(.systemGray5).opacity(0.3)
+            return Color(.systemGray4).opacity(0.25)
         } else if distanceM < 1000 {
-            return Color(red: 0.376, green: 0.647, blue: 0.980).opacity(0.4)
+            return Color.teal.opacity(0.45)
         } else if distanceM < 1500 {
-            return Color(red: 0.231, green: 0.510, blue: 0.965).opacity(0.7)
+            return Color.blue.opacity(0.65)
         } else {
-            return Color(red: 0.118, green: 0.251, blue: 0.686)
+            return Color.blue
         }
     }
 
@@ -509,7 +509,8 @@ struct StatisticsView: View {
     }
 
     private struct MonthTotalData {
-        let label: String              // "Jan", "Feb", etc.
+        let label: String              // "Jan", "Feb 2025", etc.
+        let shortLabel: String         // Always "MMM" format for heat map
         let samePeriodDistance: Double  // Distance for days 1-X (same-period comparison)
         let samePeriodLongestSet: Double? // Best set for days 1-X
         let fullDistance: Double        // Full month total distance
@@ -622,6 +623,7 @@ struct StatisticsView: View {
 
             results.append(MonthTotalData(
                 label: label,
+                shortLabel: monthLabelFmt.string(from: monthStart),
                 samePeriodDistance: spDist,
                 samePeriodLongestSet: spBestSet,
                 fullDistance: fullDist,
@@ -789,12 +791,12 @@ struct StatisticsView: View {
                         .font(.caption2.bold())
                         .foregroundStyle(.secondary)
 
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 8) {
                         // Day markers
                         HStack(spacing: 0) {
                             Text("")
                                 .font(.system(size: 9))
-                                .frame(width: 28, alignment: .leading)
+                                .frame(width: 32, alignment: .leading)
                             ForEach(1...31, id: \.self) { day in
                                 if [1, 7, 14, 21, 28].contains(day) {
                                     Text("\(day)")
@@ -813,25 +815,25 @@ struct StatisticsView: View {
                             let month = monthlyTotals[i]
                             let isSelected = i == safeIndex
                             HStack(spacing: 0) {
-                                Text(month.label)
+                                Text(month.shortLabel)
                                     .font(.system(size: 9, weight: isSelected ? .bold : .regular))
                                     .foregroundStyle(isSelected ? .primary : .secondary)
-                                    .frame(width: 28, alignment: .leading)
+                                    .frame(width: 32, alignment: .leading)
                                 ForEach(1...31, id: \.self) { day in
                                     if day <= month.daysElapsed {
                                         let point = month.dailyData.first { $0.day == day }
                                         let dist = point?.dayDistanceM ?? 0
                                         Circle()
                                             .fill(swimHeatColor(dist))
-                                            .frame(width: 8, height: 8)
-                                            .padding(1)
+                                            .frame(width: 9, height: 9)
+                                            .padding(.horizontal, 0.5)
                                     } else if day <= month.daysInMonth {
                                         Circle()
-                                            .strokeBorder(Color(.systemGray5), lineWidth: 0.5)
-                                            .frame(width: 8, height: 8)
-                                            .padding(1)
+                                            .strokeBorder(Color(.systemGray4), lineWidth: 0.75)
+                                            .frame(width: 9, height: 9)
+                                            .padding(.horizontal, 0.5)
                                     } else {
-                                        Color.clear.frame(width: 10, height: 10)
+                                        Color.clear.frame(width: 10, height: 9)
                                     }
                                 }
                             }
@@ -839,34 +841,34 @@ struct StatisticsView: View {
 
                         // Legend
                         HStack(spacing: 12) {
-                            HStack(spacing: 3) {
+                            HStack(spacing: 4) {
                                 Circle()
                                     .strokeBorder(Color(.systemGray4), lineWidth: 1)
-                                    .frame(width: 8, height: 8)
+                                    .frame(width: 9, height: 9)
                                 Text("Rest")
                                     .font(.system(size: 9))
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(.secondary)
                             }
-                            HStack(spacing: 3) {
-                                Circle().fill(Color(red: 0.376, green: 0.647, blue: 0.980).opacity(0.4)).frame(width: 8, height: 8)
+                            HStack(spacing: 4) {
+                                Circle().fill(Color.teal.opacity(0.45)).frame(width: 9, height: 9)
                                 Text("<1km")
                                     .font(.system(size: 9))
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(.secondary)
                             }
-                            HStack(spacing: 3) {
-                                Circle().fill(Color(red: 0.231, green: 0.510, blue: 0.965).opacity(0.7)).frame(width: 8, height: 8)
+                            HStack(spacing: 4) {
+                                Circle().fill(Color.blue.opacity(0.65)).frame(width: 9, height: 9)
                                 Text("1–1.5km")
                                     .font(.system(size: 9))
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(.secondary)
                             }
-                            HStack(spacing: 3) {
-                                Circle().fill(Color(red: 0.118, green: 0.251, blue: 0.686)).frame(width: 8, height: 8)
+                            HStack(spacing: 4) {
+                                Circle().fill(Color.blue).frame(width: 9, height: 9)
                                 Text(">1.5km")
                                     .font(.system(size: 9))
-                                    .foregroundStyle(.tertiary)
+                                    .foregroundStyle(.secondary)
                             }
                         }
-                        .padding(.top, 2)
+                        .padding(.top, 4)
                     }
 
                     // Row 1: Distance cards
