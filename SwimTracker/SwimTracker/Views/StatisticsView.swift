@@ -2,22 +2,12 @@ import SwiftUI
 import SwiftData
 import Charts
 
-// MARK: - Time Range Filter
+// MARK: - Monthly Progress Time Range
 
-enum TimeRange: String, CaseIterable {
-    case last30 = "Last 30 Days"
-    case last60 = "Last 60 Days"
-    case last90 = "Last 90 Days"
+enum MonthlyTimeRange: String, CaseIterable {
+    case last6Months = "Last 6 Mo"
+    case thisYear = "This Year"
     case allTime = "All Time"
-
-    var startDate: Date? {
-        switch self {
-        case .last30: return Calendar.current.date(byAdding: .day, value: -30, to: .now)
-        case .last60: return Calendar.current.date(byAdding: .day, value: -60, to: .now)
-        case .last90: return Calendar.current.date(byAdding: .day, value: -90, to: .now)
-        case .allTime: return nil
-        }
-    }
 }
 
 // MARK: - StatisticsView
@@ -25,17 +15,12 @@ enum TimeRange: String, CaseIterable {
 struct StatisticsView: View {
     @Binding var isDarkMode: Bool
     @Query(sort: \SwimSession.date) private var allSessions: [SwimSession]
-    @State private var timeRange: TimeRange = .last60
     @State private var selectedWeekIndex: Int = 7 // 0-7, default to current week (index 7)
-    @State private var selectedMonthIndex: Int = 7 // Clamped to last available month (Jan-Aug training window)
-
-    private var sessions: [SwimSession] {
-        guard let start = timeRange.startDate else { return allSessions }
-        return allSessions.filter { $0.date >= start }
-    }
+    @State private var selectedMonthIndex: Int = 0 // 0 = latest month (reversed order)
+    @AppStorage("monthlyProgressTimeRange") private var monthlyTimeRange: String = MonthlyTimeRange.thisYear.rawValue
 
     private var sessionsWithDetailedData: [SwimSession] {
-        sessions.filter { $0.detailedData != nil }
+        allSessions.filter { $0.detailedData != nil }
     }
 
     private var hasDetailedData: Bool {
@@ -54,40 +39,8 @@ struct StatisticsView: View {
                 } else {
                     ScrollView {
                         VStack(spacing: 24) {
-                            // Time range picker
-                            Picker("Time Range", selection: $timeRange) {
-                                ForEach(TimeRange.allCases, id: \.self) { range in
-                                    Text(range.rawValue).tag(range)
-                                }
-                            }
-                            .pickerStyle(.segmented)
-                            .padding(.horizontal)
-
-                            // View All Sessions button
-                            NavigationLink {
-                                SessionHistoryView()
-                            } label: {
-                                HStack {
-                                    Image(systemName: "list.bullet.clipboard")
-                                        .foregroundStyle(.blue)
-                                    Text("View All Sessions")
-                                        .font(.subheadline.bold())
-                                    Spacer()
-                                    Text("\(allSessions.count) swims")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                    Image(systemName: "chevron.right")
-                                        .font(.caption)
-                                        .foregroundStyle(.tertiary)
-                                }
-                                .padding()
-                                .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
-                            }
-                            .buttonStyle(.plain)
-                            .padding(.horizontal)
-
-                            if sessions.isEmpty {
-                                Text("No swims in this time period.")
+                            if allSessions.isEmpty {
+                                Text("No swims logged yet.")
                                     .foregroundStyle(.secondary)
                                     .padding(.top, 40)
                             } else {
@@ -98,6 +51,29 @@ struct StatisticsView: View {
                                 if hasDetailedData { heartRateAnalysisSection }
                                 trainingVolumeSection
                                 quickStatsSection
+
+                                // View All Sessions button
+                                NavigationLink {
+                                    SessionHistoryView()
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "list.bullet.clipboard")
+                                            .foregroundStyle(.blue)
+                                        Text("View All Sessions")
+                                            .font(.subheadline.bold())
+                                        Spacer()
+                                        Text("\(allSessions.count) swims")
+                                            .font(.caption)
+                                            .foregroundStyle(.secondary)
+                                        Image(systemName: "chevron.right")
+                                            .font(.caption)
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .padding()
+                                    .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                                }
+                                .buttonStyle(.plain)
+                                .padding(.horizontal)
                             }
                         }
                         .padding(.vertical)
@@ -555,6 +531,10 @@ struct StatisticsView: View {
         Color(red: 0.925, green: 0.286, blue: 0.600), // Jun - Pink
         Color(red: 0.024, green: 0.714, blue: 0.831), // Jul - Cyan
         Color(red: 0.937, green: 0.267, blue: 0.267), // Aug - Red
+        Color(red: 0.518, green: 0.388, blue: 0.867), // Sep - Indigo
+        Color(red: 0.384, green: 0.647, blue: 0.196), // Oct - Lime
+        Color(red: 0.827, green: 0.420, blue: 0.125), // Nov - Amber
+        Color(red: 0.455, green: 0.565, blue: 0.604), // Dec - Slate
     ]
 
     private func buildMonthlyTotals() -> [MonthTotalData] {
@@ -563,15 +543,25 @@ struct StatisticsView: View {
         let currentMonthStart = calendar.dateInterval(of: .month, for: now)?.start ?? now
         let dayOfMonth = calendar.component(.day, from: now)
 
-        // Fixed training window: January 2026 – August 2026
-        var components = DateComponents()
-        components.year = 2026
-        components.month = 1
-        components.day = 1
-        let trainingStart = calendar.date(from: components) ?? currentMonthStart
+        let range = MonthlyTimeRange(rawValue: monthlyTimeRange) ?? .thisYear
 
-        components.month = 8
-        let trainingEndMonth = calendar.date(from: components) ?? currentMonthStart
+        // Compute start month based on selected range
+        let rangeStart: Date = {
+            switch range {
+            case .last6Months:
+                return calendar.dateInterval(of: .month,
+                    for: calendar.date(byAdding: .month, value: -5, to: currentMonthStart) ?? currentMonthStart
+                )?.start ?? currentMonthStart
+            case .thisYear:
+                return calendar.date(from: DateComponents(year: calendar.component(.year, from: now), month: 1, day: 1)) ?? currentMonthStart
+            case .allTime:
+                // Start from first swim or Aug 2025
+                let firstSwim = allSessions.first?.date
+                let aug2025 = calendar.date(from: DateComponents(year: 2025, month: 8, day: 1)) ?? currentMonthStart
+                let earliest = firstSwim != nil ? min(firstSwim!, aug2025) : aug2025
+                return calendar.dateInterval(of: .month, for: earliest)?.start ?? aug2025
+            }
+        }()
 
         let monthLabelFmt: DateFormatter = {
             let f = DateFormatter()
@@ -584,11 +574,10 @@ struct StatisticsView: View {
             return f
         }()
 
-        // Show Jan through min(current month, August)
-        let lastMonth = min(currentMonthStart, trainingEndMonth)
+        let lastMonth = currentMonthStart
 
         var results: [MonthTotalData] = []
-        var monthStart = trainingStart
+        var monthStart = rangeStart
         while monthStart <= lastMonth {
             guard let monthInterval = calendar.dateInterval(of: .month, for: monthStart) else { break }
             let monthEnd = monthInterval.end
@@ -607,7 +596,8 @@ struct StatisticsView: View {
             let spBestSet = spSessions.compactMap { $0.longestSingleSet?.distance }.max()
 
             let isCurrent = calendar.isDate(monthStart, equalTo: currentMonthStart, toGranularity: .month)
-            let label = monthLabelFmt.string(from: monthStart)
+            let spansYears = calendar.component(.year, from: rangeStart) != calendar.component(.year, from: now)
+            let label = spansYears ? monthYearFmt.string(from: monthStart) : monthLabelFmt.string(from: monthStart)
             let dateRange = monthYearFmt.string(from: monthStart)
             let elapsed = isCurrent ? dayOfMonth : totalDays
 
@@ -653,13 +643,14 @@ struct StatisticsView: View {
     // MARK: - Monthly Progress
 
     private var monthlyComparisonSection: some View {
-        let monthlyTotals = buildMonthlyTotals()
+        let monthlyTotals = buildMonthlyTotals().reversed() as [MonthTotalData]
         let calendar = Calendar.current
         let dayOfMonth = calendar.component(.day, from: .now)
-        // Default to last month (current) if selectedMonthIndex exceeds count
-        let safeIndex = min(selectedMonthIndex >= 0 ? selectedMonthIndex : monthlyTotals.count - 1, monthlyTotals.count - 1)
+        // Default to first item (latest month) after reversal
+        let safeIndex = min(max(selectedMonthIndex, 0), max(monthlyTotals.count - 1, 0))
         let selected = monthlyTotals.indices.contains(safeIndex) ? monthlyTotals[safeIndex] : nil
-        let previous: MonthTotalData? = safeIndex > 0 ? monthlyTotals[safeIndex - 1] : nil
+        // Previous = chronologically earlier = next index in reversed array
+        let previous: MonthTotalData? = safeIndex + 1 < monthlyTotals.count ? monthlyTotals[safeIndex + 1] : nil
         let hasEnduranceData = monthlyTotals.contains { $0.fullLongestSet != nil }
         let daysRemaining = max(0, (selected?.daysInMonth ?? 30) - dayOfMonth)
 
@@ -695,6 +686,21 @@ struct StatisticsView: View {
 
         return SectionCard(title: "Monthly Progress", icon: "calendar.badge.clock") {
             VStack(alignment: .leading, spacing: 16) {
+                // Time range filter
+                Picker("Range", selection: Binding(
+                    get: { MonthlyTimeRange(rawValue: monthlyTimeRange) ?? .thisYear },
+                    set: { newValue in
+                        monthlyTimeRange = newValue.rawValue
+                        // Reset to latest month (index 0 in reversed order)
+                        selectedMonthIndex = 0
+                    }
+                )) {
+                    ForEach(MonthlyTimeRange.allCases, id: \.self) { range in
+                        Text(range.rawValue).tag(range)
+                    }
+                }
+                .pickerStyle(.segmented)
+
                 if monthlyTotals.filter({ $0.fullDistance > 0 }).count < 2 {
                     Text("Need more months to show trends.")
                         .font(.caption)
@@ -702,30 +708,33 @@ struct StatisticsView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 20)
                 } else {
-                    // Month legend (tappable)
-                    HStack(spacing: 0) {
-                        ForEach(monthlyTotals.indices, id: \.self) { i in
-                            let month = monthlyTotals[i]
-                            let isSelected = i == safeIndex
-                            Button {
-                                withAnimation(.easeInOut(duration: 0.2)) {
-                                    selectedMonthIndex = i
+                    // Month legend (tappable, scrollable)
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 2) {
+                            ForEach(monthlyTotals.indices, id: \.self) { i in
+                                let month = monthlyTotals[i]
+                                let isSelected = i == safeIndex
+                                Button {
+                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                        selectedMonthIndex = i
+                                    }
+                                    let generator = UIImpactFeedbackGenerator(style: .light)
+                                    generator.impactOccurred()
+                                } label: {
+                                    HStack(spacing: 3) {
+                                        Circle().fill(month.color).frame(width: 7, height: 7)
+                                        Text(month.label)
+                                            .font(.caption2)
+                                            .fontWeight(isSelected ? .bold : .regular)
+                                            .foregroundStyle(isSelected ? .primary : .secondary)
+                                    }
+                                    .fixedSize()
+                                    .padding(.horizontal, 4)
+                                    .padding(.vertical, 3)
+                                    .background(isSelected ? month.color.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 6))
                                 }
-                                let generator = UIImpactFeedbackGenerator(style: .light)
-                                generator.impactOccurred()
-                            } label: {
-                                HStack(spacing: 3) {
-                                    Circle().fill(month.color).frame(width: 7, height: 7)
-                                    Text(month.label)
-                                        .font(.caption2)
-                                        .fontWeight(isSelected ? .bold : .regular)
-                                        .foregroundStyle(isSelected ? .primary : .secondary)
-                                }
-                                .padding(.horizontal, 4)
-                                .padding(.vertical, 3)
-                                .background(isSelected ? month.color.opacity(0.12) : .clear, in: RoundedRectangle(cornerRadius: 6))
+                                .buttonStyle(.plain)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
 
@@ -1059,7 +1068,7 @@ struct StatisticsView: View {
     // MARK: - Section 4: Pace Analysis
 
     private var paceAnalysisSection: some View {
-        let paceData: [(date: Date, pace: Double)] = sessions.compactMap { session in
+        let paceData: [(date: Date, pace: Double)] = allSessions.compactMap { session in
             guard session.distance > 0 else { return nil }
             let pace = (session.duration * 60) / (session.distance / 100) / 60 // min per 100m
             return (date: session.date, pace: pace)
@@ -1300,7 +1309,7 @@ struct StatisticsView: View {
                                 .font(.subheadline.bold())
                         }
                     }
-                    if let longest = sessions.map(\.longestContinuousDistance).max() {
+                    if let longest = allSessions.map(\.longestContinuousDistance).max() {
                         VStack(spacing: 4) {
                             Text("Longest Continuous")
                                 .font(.caption)
@@ -1310,10 +1319,10 @@ struct StatisticsView: View {
                         }
                     }
                     VStack(spacing: 4) {
-                        Text("This Period")
+                        Text("Total")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text("\(sessions.count) swims")
+                        Text("\(allSessions.count) swims")
                             .font(.subheadline.bold())
                     }
                 }
@@ -1361,7 +1370,7 @@ struct StatisticsView: View {
     private func monthlyDistances() -> [(monthStart: Date, distance: Double)] {
         let calendar = Calendar.current
         var monthly: [Date: Double] = [:]
-        for session in sessions {
+        for session in allSessions {
             let monthStart = calendar.dateInterval(of: .month, for: session.date)?.start ?? session.date
             monthly[monthStart, default: 0] += session.distance
         }
@@ -1371,7 +1380,7 @@ struct StatisticsView: View {
     private func weeklySwimFrequency() -> [(weekStart: Date, count: Int)] {
         let calendar = Calendar.current
         var weekly: [Date: Int] = [:]
-        for session in sessions {
+        for session in allSessions {
             let weekStart = calendar.dateInterval(of: .weekOfYear, for: session.date)?.start ?? session.date
             weekly[weekStart, default: 0] += 1
         }
