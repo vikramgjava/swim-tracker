@@ -32,6 +32,11 @@ final class Workout {
     var notes: String?
     var setsJSON: String
 
+    var actualTotalDistance: Int {
+        let setsTotal = sets.reduce(0) { $0 + ($1.reps * $1.distance) }
+        return setsTotal > 0 ? setsTotal : totalDistance
+    }
+
     var sets: [WorkoutSet] {
         get {
             guard let data = setsJSON.data(using: .utf8) else { return [] }

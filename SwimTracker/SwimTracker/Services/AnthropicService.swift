@@ -90,6 +90,20 @@ final class AnthropicService {
 
     IMPORTANT: Always use the update_workouts tool when providing new workouts. Do not just \
     describe workouts in text - use the tool so they appear in the swimmer's Upcoming tab.
+
+    CRITICAL: When generating workouts, you MUST calculate total distance accurately.
+    For each workout:
+    1. List all sets with reps and distances
+    2. Calculate total: (reps × distance) for each set, then sum
+    3. Verify the total matches the user's request
+    4. If total doesn't match, adjust sets BEFORE responding
+
+    Example:
+    User wants: 1500m
+    Your sets: 200m + (8×100m) + 200m = 1200m WRONG
+    Fix: 200m + (10×100m) + 300m = 1500m CORRECT
+
+    Always ensure your total_distance field matches the sum of (reps × distance) for all sets.
     """
 
     private let workoutTool: [String: Any] = [
@@ -351,6 +365,15 @@ final class AnthropicService {
                 notes: notes
             )
             parsed.append(workout)
+
+            // Debug: validate Coach's total vs calculated total
+            let calculatedTotal = workout.actualTotalDistance
+            print("[Workout] \(title)")
+            print("[Workout]   Coach's total: \(totalDistance)m")
+            print("[Workout]   Calculated total: \(calculatedTotal)m")
+            if abs(calculatedTotal - totalDistance) > 50 {
+                print("[Workout]   ⚠️ MISMATCH: difference of \(calculatedTotal - totalDistance)m")
+            }
         }
 
         proposedWorkouts = parsed

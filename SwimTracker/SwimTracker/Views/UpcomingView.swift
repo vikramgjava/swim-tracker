@@ -75,7 +75,7 @@ struct UpcomingView: View {
 
     private func openWorkout(_ workout: Workout) {
         completionDate = .now
-        completionDuration = Double(workout.totalDistance) / 50.0
+        completionDuration = Double(workout.actualTotalDistance) / 50.0
         selectedWorkout = workout
     }
 
@@ -86,7 +86,7 @@ struct UpcomingView: View {
         let difficulty = parseDifficulty(from: workout.effortLevel)
         let session = SwimSession(
             date: date,
-            distance: Double(workout.totalDistance),
+            distance: Double(workout.actualTotalDistance),
             duration: duration,
             notes: "\(workout.title) — \(workout.focus)",
             difficulty: difficulty,
@@ -124,7 +124,7 @@ struct WorkoutDetailSheet: View {
                     .padding(.vertical, 4)
 
                     HStack(spacing: 20) {
-                        Label("\(workout.totalDistance)m", systemImage: "arrow.left.and.right")
+                        Label("\(workout.actualTotalDistance)m", systemImage: "arrow.left.and.right")
                         Label(workout.effortLevel, systemImage: "flame.fill")
                     }
                     .font(.subheadline.bold())
@@ -205,7 +205,7 @@ struct WorkoutCard: View {
 
             // Stats row
             HStack(spacing: 16) {
-                Label("\(workout.totalDistance)m", systemImage: "arrow.left.and.right")
+                Label("\(workout.actualTotalDistance)m", systemImage: "arrow.left.and.right")
                 Label(workout.focus, systemImage: "target")
                 Label(workout.effortLevel, systemImage: "flame.fill")
             }
