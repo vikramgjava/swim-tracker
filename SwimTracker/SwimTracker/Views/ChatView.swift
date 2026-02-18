@@ -19,6 +19,11 @@ struct ChatView: View {
     @State private var healthKitManager = HealthKitManager()
     @State private var showError = false
     @State private var showWorkoutBanner = false
+    @State private var showWorkoutPreview = false
+    @State private var pressedAction: String?
+    @State private var workoutCardStatus: WorkoutCardStatus? = nil
+    @State private var cardWorkouts: [Workout] = []
+    @State private var selectedOptionIndices: [UUID: Int] = [:]
 
     var body: some View {
         NavigationStack {
@@ -26,8 +31,29 @@ struct ChatView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         ForEach(messages) { message in
-                            MessageBubble(message: message)
-                                .id(message.id)
+                            MessageBubble(
+                                message: message,
+                                selectedOptionIndex: selectedOptionIndices[message.id],
+                                onOptionSelected: { option in
+                                    selectOption(option, for: message)
+                                }
+                            )
+                            .id(message.id)
+                        }
+
+                        // Inline workout card
+                        if let status = workoutCardStatus, !cardWorkouts.isEmpty {
+                            WorkoutCardView(
+                                workouts: cardWorkouts,
+                                status: status,
+                                onTap: {
+                                    if status == .pending {
+                                        showWorkoutPreview = true
+                                    }
+                                }
+                            )
+                            .id("workoutCard")
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
 
                         if service.isLoading {
@@ -45,6 +71,9 @@ struct ChatView: View {
                     .padding(.vertical)
                 }
                 .scrollDismissesKeyboard(.interactively)
+                .safeAreaInset(edge: .top) {
+                    quickActionsGrid
+                }
                 .onAppear {
                     scrollToBottom(proxy: proxy)
                 }
@@ -56,36 +85,6 @@ struct ChatView: View {
                 }
                 .safeAreaInset(edge: .bottom) {
                     VStack(spacing: 0) {
-                        if !service.proposedWorkouts.isEmpty {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text("Coach proposed \(service.proposedWorkouts.count) workouts")
-                                        .font(.subheadline.bold())
-                                    Text("Review and accept to add to Upcoming")
-                                        .font(.caption)
-                                        .foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                Button("Decline") {
-                                    withAnimation {
-                                        service.declineWorkouts()
-                                    }
-                                }
-                                .buttonStyle(.bordered)
-                                .tint(.red)
-                                Button("Accept") {
-                                    withAnimation {
-                                        service.acceptWorkouts(modelContext: modelContext)
-                                    }
-                                }
-                                .buttonStyle(.borderedProminent)
-                            }
-                            .padding()
-                            .background(.blue.opacity(0.1), in: RoundedRectangle(cornerRadius: 12))
-                            .padding(.horizontal)
-                            .padding(.top, 8)
-                            .transition(.move(edge: .bottom).combined(with: .opacity))
-                        }
                         if showWorkoutBanner {
                             HStack {
                                 Text("\u{2705} Next 3 workouts updated! Check Upcoming tab.")
@@ -173,7 +172,117 @@ struct ChatView: View {
                     }
                 }
             }
+            .onChange(of: service.proposedWorkouts.count) {
+                if !service.proposedWorkouts.isEmpty {
+                    withAnimation {
+                        cardWorkouts = service.proposedWorkouts
+                        workoutCardStatus = .pending
+                    }
+                }
+            }
+            .sheet(isPresented: $showWorkoutPreview) {
+                WorkoutPreviewModal(
+                    workouts: cardWorkouts,
+                    onAccept: {
+                        service.acceptWorkouts(modelContext: modelContext)
+                        withAnimation {
+                            workoutCardStatus = .accepted
+                        }
+                    },
+                    onReject: {
+                        service.declineWorkouts()
+                        withAnimation {
+                            workoutCardStatus = .rejected
+                        }
+                    }
+                )
+            }
         }
+    }
+
+    // MARK: - Quick Actions
+
+    private var quickActionsGrid: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                quickActionButton(
+                    id: "generate",
+                    icon: "calendar.badge.plus",
+                    title: "Generate\nWorkouts"
+                ) {
+                    sendQuickAction("Generate my next 3 workouts based on my recent progress")
+                }
+                quickActionButton(
+                    id: "analyze",
+                    icon: "chart.line.uptrend.xyaxis",
+                    title: "Analyze\nProgress"
+                ) {
+                    sendQuickAction("Analyze my recent swimming progress and provide insights")
+                }
+            }
+            HStack(spacing: 8) {
+                quickActionButton(
+                    id: "adjust",
+                    icon: "slider.horizontal.3",
+                    title: "Adjust\nPlan"
+                ) {
+                    sendQuickAction("I'd like to adjust my training plan")
+                }
+                quickActionButton(
+                    id: "tips",
+                    icon: "lightbulb.fill",
+                    title: "Tips &\nAdvice"
+                ) {
+                    sendQuickAction("Give me some swimming tips and advice")
+                }
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+
+    private func quickActionButton(id: String, icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button {
+            action()
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(.blue)
+                Text(title)
+                    .font(.caption2.bold())
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .foregroundStyle(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 72)
+            .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(pressedAction == id ? 0.95 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: pressedAction)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in pressedAction = id }
+                .onEnded { _ in pressedAction = nil }
+        )
+        .disabled(service.isLoading)
+        .opacity(service.isLoading ? 0.5 : 1.0)
+    }
+
+    private func sendQuickAction(_ text: String) {
+        messageText = text
+        sendMessage()
+    }
+
+    private func selectOption(_ option: CoachOption, for message: ChatMessage) {
+        withAnimation {
+            selectedOptionIndices[message.id] = option.number - 1
+        }
+        messageText = "I choose: \(option.title)"
+        sendMessage()
     }
 
     private var settingsSheet: some View {
@@ -395,23 +504,63 @@ struct ChatView: View {
 
 struct MessageBubble: View {
     let message: ChatMessage
+    var selectedOptionIndex: Int? = nil
+    var onOptionSelected: ((CoachOption) -> Void)? = nil
 
     var body: some View {
-        HStack {
-            if message.isUser { Spacer(minLength: 60) }
+        if !message.isUser, let parsed = parseCoachOptions(from: message.content) {
+            // Coach message with options
+            VStack(alignment: .leading, spacing: 8) {
+                if !parsed.textBefore.isEmpty {
+                    HStack {
+                        Text(parsed.textBefore)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 16))
+                            .foregroundStyle(.primary)
+                        Spacer(minLength: 60)
+                    }
+                    .padding(.horizontal)
+                }
 
-            Text(message.content)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(
-                    message.isUser ? Color.blue : Color(.systemGray5),
-                    in: RoundedRectangle(cornerRadius: 16)
+                CoachOptionCardsView(
+                    options: parsed.options,
+                    selectedIndex: selectedOptionIndex,
+                    onSelect: { option in
+                        onOptionSelected?(option)
+                    }
                 )
-                .foregroundStyle(message.isUser ? .white : .primary)
 
-            if !message.isUser { Spacer(minLength: 60) }
+                if !parsed.textAfter.isEmpty {
+                    HStack {
+                        Text(parsed.textAfter)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 16))
+                            .foregroundStyle(.primary)
+                        Spacer(minLength: 60)
+                    }
+                    .padding(.horizontal)
+                }
+            }
+        } else {
+            // Regular message bubble
+            HStack {
+                if message.isUser { Spacer(minLength: 60) }
+
+                Text(message.content)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        message.isUser ? Color.blue : Color(.systemGray5),
+                        in: RoundedRectangle(cornerRadius: 16)
+                    )
+                    .foregroundStyle(message.isUser ? .white : .primary)
+
+                if !message.isUser { Spacer(minLength: 60) }
+            }
+            .padding(.horizontal)
         }
-        .padding(.horizontal)
     }
 }
 
