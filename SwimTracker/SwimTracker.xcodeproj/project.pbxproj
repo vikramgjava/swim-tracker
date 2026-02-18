@@ -29,6 +29,8 @@
 		A1B2C3D400000079 /* RecentTrendsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000078 /* RecentTrendsCard.swift */; };
 		A1B2C3D40000007B /* AnalysesHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000007A /* AnalysesHistoryView.swift */; };
 		A1B2C3D40000007D /* WorkoutPreviewModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000007C /* WorkoutPreviewModal.swift */; };
+		A1B2C3D40000007F /* WorkoutCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000007E /* WorkoutCardView.swift */; };
+		A1B2C3D400000081 /* CoachOptionCardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000080 /* CoachOptionCardsView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -55,6 +57,8 @@
 		A1B2C3D400000078 /* RecentTrendsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RecentTrendsCard.swift; sourceTree = "<group>"; };
 		A1B2C3D40000007A /* AnalysesHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AnalysesHistoryView.swift; sourceTree = "<group>"; };
 		A1B2C3D40000007C /* WorkoutPreviewModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutPreviewModal.swift; sourceTree = "<group>"; };
+		A1B2C3D40000007E /* WorkoutCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutCardView.swift; sourceTree = "<group>"; };
+		A1B2C3D400000080 /* CoachOptionCardsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachOptionCardsView.swift; sourceTree = "<group>"; };
 		A1B2C3D400000031 /* SwimTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwimTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -118,6 +122,8 @@
 				A1B2C3D400000078 /* RecentTrendsCard.swift */,
 				A1B2C3D40000007A /* AnalysesHistoryView.swift */,
 				A1B2C3D40000007C /* WorkoutPreviewModal.swift */,
+				A1B2C3D40000007E /* WorkoutCardView.swift */,
+				A1B2C3D400000080 /* CoachOptionCardsView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -245,6 +251,8 @@
 				A1B2C3D400000079 /* RecentTrendsCard.swift in Sources */,
 				A1B2C3D40000007B /* AnalysesHistoryView.swift in Sources */,
 				A1B2C3D40000007D /* WorkoutPreviewModal.swift in Sources */,
+				A1B2C3D40000007F /* WorkoutCardView.swift in Sources */,
+				A1B2C3D400000081 /* CoachOptionCardsView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -21,6 +21,9 @@ struct ChatView: View {
     @State private var showWorkoutBanner = false
     @State private var showWorkoutPreview = false
     @State private var pressedAction: String?
+    @State private var workoutCardStatus: WorkoutCardStatus? = nil
+    @State private var cardWorkouts: [Workout] = []
+    @State private var selectedOptionIndices: [UUID: Int] = [:]
 
     var body: some View {
         NavigationStack {
@@ -28,8 +31,29 @@ struct ChatView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         ForEach(messages) { message in
-                            MessageBubble(message: message)
-                                .id(message.id)
+                            MessageBubble(
+                                message: message,
+                                selectedOptionIndex: selectedOptionIndices[message.id],
+                                onOptionSelected: { option in
+                                    selectOption(option, for: message)
+                                }
+                            )
+                            .id(message.id)
+                        }
+
+                        // Inline workout card
+                        if let status = workoutCardStatus, !cardWorkouts.isEmpty {
+                            WorkoutCardView(
+                                workouts: cardWorkouts,
+                                status: status,
+                                onTap: {
+                                    if status == .pending {
+                                        showWorkoutPreview = true
+                                    }
+                                }
+                            )
+                            .id("workoutCard")
+                            .transition(.opacity.combined(with: .move(edge: .bottom)))
                         }
 
                         if service.isLoading {
@@ -150,17 +174,26 @@ struct ChatView: View {
             }
             .onChange(of: service.proposedWorkouts.count) {
                 if !service.proposedWorkouts.isEmpty {
-                    showWorkoutPreview = true
+                    withAnimation {
+                        cardWorkouts = service.proposedWorkouts
+                        workoutCardStatus = .pending
+                    }
                 }
             }
             .sheet(isPresented: $showWorkoutPreview) {
                 WorkoutPreviewModal(
-                    workouts: service.proposedWorkouts,
+                    workouts: cardWorkouts,
                     onAccept: {
                         service.acceptWorkouts(modelContext: modelContext)
+                        withAnimation {
+                            workoutCardStatus = .accepted
+                        }
                     },
                     onReject: {
                         service.declineWorkouts()
+                        withAnimation {
+                            workoutCardStatus = .rejected
+                        }
                     }
                 )
             }
@@ -241,6 +274,14 @@ struct ChatView: View {
 
     private func sendQuickAction(_ text: String) {
         messageText = text
+        sendMessage()
+    }
+
+    private func selectOption(_ option: CoachOption, for message: ChatMessage) {
+        withAnimation {
+            selectedOptionIndices[message.id] = option.number - 1
+        }
+        messageText = "I choose: \(option.title)"
         sendMessage()
     }
 
@@ -463,23 +504,63 @@ struct ChatView: View {
 
 struct MessageBubble: View {
     let message: ChatMessage
+    var selectedOptionIndex: Int? = nil
+    var onOptionSelected: ((CoachOption) -> Void)? = nil
 
     var body: some View {
-        HStack {
-            if message.isUser { Spacer(minLength: 60) }
+        if !message.isUser, let parsed = parseCoachOptions(from: message.content) {
+            // Coach message with options
+            VStack(alignment: .leading, spacing: 8) {
+                if !parsed.textBefore.isEmpty {
+                    HStack {
+                        Text(parsed.textBefore)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 16))
+                            .foregroundStyle(.primary)
+                        Spacer(minLength: 60)
+                    }
+                    .padding(.horizontal)
+                }
 
-            Text(message.content)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 10)
-                .background(
-                    message.isUser ? Color.blue : Color(.systemGray5),
-                    in: RoundedRectangle(cornerRadius: 16)
+                CoachOptionCardsView(
+                    options: parsed.options,
+                    selectedIndex: selectedOptionIndex,
+                    onSelect: { option in
+                        onOptionSelected?(option)
+                    }
                 )
-                .foregroundStyle(message.isUser ? .white : .primary)
 
-            if !message.isUser { Spacer(minLength: 60) }
+                if !parsed.textAfter.isEmpty {
+                    HStack {
+                        Text(parsed.textAfter)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(Color(.systemGray5), in: RoundedRectangle(cornerRadius: 16))
+                            .foregroundStyle(.primary)
+                        Spacer(minLength: 60)
+                    }
+                    .padding(.horizontal)
+                }
+            }
+        } else {
+            // Regular message bubble
+            HStack {
+                if message.isUser { Spacer(minLength: 60) }
+
+                Text(message.content)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(
+                        message.isUser ? Color.blue : Color(.systemGray5),
+                        in: RoundedRectangle(cornerRadius: 16)
+                    )
+                    .foregroundStyle(message.isUser ? .white : .primary)
+
+                if !message.isUser { Spacer(minLength: 60) }
+            }
+            .padding(.horizontal)
         }
-        .padding(.horizontal)
     }
 }
 

@@ -104,6 +104,25 @@ final class AnthropicService {
     Fix: 200m + (10×100m) + 300m = 1500m CORRECT
 
     Always ensure your total_distance field matches the sum of (reps × distance) for all sets.
+
+    OFFERING CHOICES:
+    When offering the user multiple approaches or choices, format them with markers so \
+    the app can render them as tappable cards:
+
+    OPTIONS_START
+    Option 1: Title - Short description of this approach
+    Option 2: Title - Short description of this approach
+    OPTIONS_END
+
+    Example:
+    I can create workouts with two different focuses:
+
+    OPTIONS_START
+    Option 1: Endurance Focus - Build base with longer continuous sets
+    Option 2: Speed Focus - Work on faster intervals and anaerobic capacity
+    OPTIONS_END
+
+    Which would you prefer?
     """
 
     private let workoutTool: [String: Any] = [
