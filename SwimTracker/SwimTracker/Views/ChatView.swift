@@ -19,6 +19,7 @@ struct ChatView: View {
     @State private var healthKitManager = HealthKitManager()
     @State private var showError = false
     @State private var showWorkoutBanner = false
+    @State private var pressedAction: String?
 
     var body: some View {
         NavigationStack {
@@ -45,6 +46,9 @@ struct ChatView: View {
                     .padding(.vertical)
                 }
                 .scrollDismissesKeyboard(.interactively)
+                .safeAreaInset(edge: .top) {
+                    quickActionsGrid
+                }
                 .onAppear {
                     scrollToBottom(proxy: proxy)
                 }
@@ -174,6 +178,83 @@ struct ChatView: View {
                 }
             }
         }
+    }
+
+    // MARK: - Quick Actions
+
+    private var quickActionsGrid: some View {
+        VStack(spacing: 8) {
+            HStack(spacing: 8) {
+                quickActionButton(
+                    id: "generate",
+                    icon: "calendar.badge.plus",
+                    title: "Generate\nWorkouts"
+                ) {
+                    sendQuickAction("Generate my next 3 workouts based on my recent progress")
+                }
+                quickActionButton(
+                    id: "analyze",
+                    icon: "chart.line.uptrend.xyaxis",
+                    title: "Analyze\nProgress"
+                ) {
+                    sendQuickAction("Analyze my recent swimming progress and provide insights")
+                }
+            }
+            HStack(spacing: 8) {
+                quickActionButton(
+                    id: "adjust",
+                    icon: "slider.horizontal.3",
+                    title: "Adjust\nPlan"
+                ) {
+                    sendQuickAction("I'd like to adjust my training plan")
+                }
+                quickActionButton(
+                    id: "tips",
+                    icon: "lightbulb.fill",
+                    title: "Tips &\nAdvice"
+                ) {
+                    sendQuickAction("Give me some swimming tips and advice")
+                }
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(.bar)
+    }
+
+    private func quickActionButton(id: String, icon: String, title: String, action: @escaping () -> Void) -> some View {
+        Button {
+            action()
+        } label: {
+            VStack(spacing: 6) {
+                Image(systemName: icon)
+                    .font(.title3)
+                    .foregroundStyle(.blue)
+                Text(title)
+                    .font(.caption2.bold())
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .foregroundStyle(.primary)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 72)
+            .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+        }
+        .buttonStyle(.plain)
+        .scaleEffect(pressedAction == id ? 0.95 : 1.0)
+        .animation(.easeInOut(duration: 0.1), value: pressedAction)
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in pressedAction = id }
+                .onEnded { _ in pressedAction = nil }
+        )
+        .disabled(service.isLoading)
+        .opacity(service.isLoading ? 0.5 : 1.0)
+    }
+
+    private func sendQuickAction(_ text: String) {
+        messageText = text
+        sendMessage()
     }
 
     private var settingsSheet: some View {
