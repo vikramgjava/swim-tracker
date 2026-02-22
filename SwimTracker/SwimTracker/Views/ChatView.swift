@@ -12,6 +12,8 @@ struct ChatView: View {
     ) private var upcomingWorkouts: [Workout]
 
     @State private var service = AnthropicService()
+    @State private var insightsService = CoachInsightsService()
+    @State private var currentInsights: [CoachInsight] = []
     @State private var messageText = ""
     @State private var showSettings = false
     @AppStorage("anthropicAPIKey") private var apiKey = ""
@@ -20,6 +22,8 @@ struct ChatView: View {
     @State private var showError = false
     @State private var showWorkoutBanner = false
     @State private var showWorkoutPreview = false
+    @State private var showWorkoutsSheet = false
+    @State private var showInsightsSheet = false
     @State private var pressedAction: String?
     @State private var workoutCardStatus: WorkoutCardStatus? = nil
     @State private var cardWorkouts: [Workout] = []
@@ -72,13 +76,17 @@ struct ChatView: View {
                 }
                 .scrollDismissesKeyboard(.interactively)
                 .safeAreaInset(edge: .top) {
-                    quickActionsGrid
+                    quickActionsBar
                 }
                 .onAppear {
+                    refreshInsights()
                     scrollToBottom(proxy: proxy)
                 }
                 .onChange(of: messages.count) {
                     scrollToBottom(proxy: proxy)
+                }
+                .onChange(of: sessions.count) {
+                    refreshInsights()
                 }
                 .onChange(of: service.isLoading) {
                     scrollToBottom(proxy: proxy)
@@ -197,44 +205,48 @@ struct ChatView: View {
                     }
                 )
             }
+            .sheet(isPresented: $showWorkoutsSheet) {
+                WorkoutsSheetView(
+                    onRegenerate: {
+                        sendQuickAction("Regenerate my next 3 workouts based on my recent progress")
+                    },
+                    onGenerate: {
+                        sendQuickAction("Generate my next 3 workouts based on my recent progress")
+                    }
+                )
+                .presentationDetents([.large])
+            }
+            .sheet(isPresented: $showInsightsSheet) {
+                InsightsSheetView { actionMessage in
+                    sendQuickAction(actionMessage)
+                }
+                .presentationDetents([.large])
+            }
         }
     }
 
-    // MARK: - Quick Actions
+    // MARK: - Quick Actions Bar
 
-    private var quickActionsGrid: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 8) {
-                quickActionButton(
-                    id: "generate",
-                    icon: "calendar.badge.plus",
-                    title: "Generate\nWorkouts"
-                ) {
-                    sendQuickAction("Generate my next 3 workouts based on my recent progress")
-                }
-                quickActionButton(
-                    id: "analyze",
-                    icon: "chart.line.uptrend.xyaxis",
-                    title: "Analyze\nProgress"
-                ) {
-                    sendQuickAction("Analyze my recent swimming progress and provide insights")
-                }
+    private var quickActionsBar: some View {
+        HStack(spacing: 8) {
+            quickBarButton(
+                id: "workouts",
+                icon: "figure.pool.swim",
+                label: "Workouts",
+                count: upcomingWorkouts.count,
+                color: .blue
+            ) {
+                showWorkoutsSheet = true
             }
-            HStack(spacing: 8) {
-                quickActionButton(
-                    id: "adjust",
-                    icon: "slider.horizontal.3",
-                    title: "Adjust\nPlan"
-                ) {
-                    sendQuickAction("I'd like to adjust my training plan")
-                }
-                quickActionButton(
-                    id: "tips",
-                    icon: "lightbulb.fill",
-                    title: "Tips &\nAdvice"
-                ) {
-                    sendQuickAction("Give me some swimming tips and advice")
-                }
+
+            quickBarButton(
+                id: "insights",
+                icon: "sparkles",
+                label: "Insights",
+                count: currentInsights.count,
+                color: .purple
+            ) {
+                showInsightsSheet = true
             }
         }
         .padding(.horizontal)
@@ -242,23 +254,26 @@ struct ChatView: View {
         .background(.bar)
     }
 
-    private func quickActionButton(id: String, icon: String, title: String, action: @escaping () -> Void) -> some View {
+    private func quickBarButton(id: String, icon: String, label: String, count: Int, color: Color, action: @escaping () -> Void) -> some View {
         Button {
             action()
         } label: {
-            VStack(spacing: 6) {
+            HStack(spacing: 6) {
                 Image(systemName: icon)
-                    .font(.title3)
-                    .foregroundStyle(.blue)
-                Text(title)
-                    .font(.caption2.bold())
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
+                    .font(.subheadline)
+                    .foregroundStyle(color)
+                Text(label)
+                    .font(.subheadline.bold())
                     .foregroundStyle(.primary)
+                if count > 0 {
+                    Text("(\(count))")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 72)
-            .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 12))
+            .frame(height: 40)
+            .background(Color(.systemGray6), in: RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
         .scaleEffect(pressedAction == id ? 0.95 : 1.0)
@@ -268,8 +283,6 @@ struct ChatView: View {
                 .onChanged { _ in pressedAction = id }
                 .onEnded { _ in pressedAction = nil }
         )
-        .disabled(service.isLoading)
-        .opacity(service.isLoading ? 0.5 : 1.0)
     }
 
     private func sendQuickAction(_ text: String) {
@@ -498,6 +511,16 @@ struct ChatView: View {
             withAnimation { proxy.scrollTo("loading", anchor: .bottom) }
         } else if let lastMessage = messages.last {
             withAnimation { proxy.scrollTo(lastMessage.id, anchor: .bottom) }
+        }
+    }
+
+    private func refreshInsights() {
+        insightsService.generateInsights(sessions: Array(sessions)) { actionMessage in
+            messageText = actionMessage
+            sendMessage()
+        }
+        withAnimation {
+            currentInsights = insightsService.insights
         }
     }
 }

@@ -31,6 +31,10 @@
 		A1B2C3D40000007D /* WorkoutPreviewModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000007C /* WorkoutPreviewModal.swift */; };
 		A1B2C3D40000007F /* WorkoutCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000007E /* WorkoutCardView.swift */; };
 		A1B2C3D400000081 /* CoachOptionCardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000080 /* CoachOptionCardsView.swift */; };
+		A1B2C3D400000083 /* CoachInsightsService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000082 /* CoachInsightsService.swift */; };
+		A1B2C3D400000085 /* CoachInsightCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000084 /* CoachInsightCard.swift */; };
+		A1B2C3D400000087 /* WorkoutsSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000086 /* WorkoutsSheetView.swift */; };
+		A1B2C3D400000089 /* InsightsSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000088 /* InsightsSheetView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -59,6 +63,10 @@
 		A1B2C3D40000007C /* WorkoutPreviewModal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutPreviewModal.swift; sourceTree = "<group>"; };
 		A1B2C3D40000007E /* WorkoutCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutCardView.swift; sourceTree = "<group>"; };
 		A1B2C3D400000080 /* CoachOptionCardsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachOptionCardsView.swift; sourceTree = "<group>"; };
+		A1B2C3D400000082 /* CoachInsightsService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachInsightsService.swift; sourceTree = "<group>"; };
+		A1B2C3D400000084 /* CoachInsightCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachInsightCard.swift; sourceTree = "<group>"; };
+		A1B2C3D400000086 /* WorkoutsSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutsSheetView.swift; sourceTree = "<group>"; };
+		A1B2C3D400000088 /* InsightsSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsSheetView.swift; sourceTree = "<group>"; };
 		A1B2C3D400000031 /* SwimTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwimTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -124,6 +132,9 @@
 				A1B2C3D40000007C /* WorkoutPreviewModal.swift */,
 				A1B2C3D40000007E /* WorkoutCardView.swift */,
 				A1B2C3D400000080 /* CoachOptionCardsView.swift */,
+				A1B2C3D400000084 /* CoachInsightCard.swift */,
+				A1B2C3D400000086 /* WorkoutsSheetView.swift */,
+				A1B2C3D400000088 /* InsightsSheetView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -149,6 +160,7 @@
 			children = (
 				A1B2C3D40000000A /* AnthropicService.swift */,
 				A1B2C3D40000000F /* HealthKitManager.swift */,
+				A1B2C3D400000082 /* CoachInsightsService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -253,6 +265,10 @@
 				A1B2C3D40000007D /* WorkoutPreviewModal.swift in Sources */,
 				A1B2C3D40000007F /* WorkoutCardView.swift in Sources */,
 				A1B2C3D400000081 /* CoachOptionCardsView.swift in Sources */,
+				A1B2C3D400000083 /* CoachInsightsService.swift in Sources */,
+				A1B2C3D400000085 /* CoachInsightCard.swift in Sources */,
+				A1B2C3D400000087 /* WorkoutsSheetView.swift in Sources */,
+				A1B2C3D400000089 /* InsightsSheetView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
