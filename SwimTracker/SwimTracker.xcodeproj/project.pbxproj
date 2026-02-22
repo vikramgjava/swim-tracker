@@ -35,6 +35,10 @@
 		A1B2C3D400000085 /* CoachInsightCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000084 /* CoachInsightCard.swift */; };
 		A1B2C3D400000087 /* WorkoutsSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000086 /* WorkoutsSheetView.swift */; };
 		A1B2C3D400000089 /* InsightsSheetView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000088 /* InsightsSheetView.swift */; };
+		A1B2C3D40000008B /* WeeklyProgressService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000008A /* WeeklyProgressService.swift */; };
+		A1B2C3D40000008D /* WeeklyProgressCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000008C /* WeeklyProgressCard.swift */; };
+		A1B2C3D40000008F /* EnduranceProgressionSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000008E /* EnduranceProgressionSection.swift */; };
+		A1B2C3D400000091 /* EnduranceTarget.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000090 /* EnduranceTarget.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -67,6 +71,10 @@
 		A1B2C3D400000084 /* CoachInsightCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoachInsightCard.swift; sourceTree = "<group>"; };
 		A1B2C3D400000086 /* WorkoutsSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutsSheetView.swift; sourceTree = "<group>"; };
 		A1B2C3D400000088 /* InsightsSheetView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightsSheetView.swift; sourceTree = "<group>"; };
+		A1B2C3D40000008A /* WeeklyProgressService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyProgressService.swift; sourceTree = "<group>"; };
+		A1B2C3D40000008C /* WeeklyProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyProgressCard.swift; sourceTree = "<group>"; };
+		A1B2C3D40000008E /* EnduranceProgressionSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnduranceProgressionSection.swift; sourceTree = "<group>"; };
+		A1B2C3D400000090 /* EnduranceTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnduranceTarget.swift; sourceTree = "<group>"; };
 		A1B2C3D400000031 /* SwimTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwimTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -112,6 +120,7 @@
 				A1B2C3D400000009 /* ChatMessage.swift */,
 				A1B2C3D40000000C /* Workout.swift */,
 				A1B2C3D400000074 /* WorkoutAnalysis.swift */,
+				A1B2C3D400000090 /* EnduranceTarget.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -135,6 +144,8 @@
 				A1B2C3D400000084 /* CoachInsightCard.swift */,
 				A1B2C3D400000086 /* WorkoutsSheetView.swift */,
 				A1B2C3D400000088 /* InsightsSheetView.swift */,
+				A1B2C3D40000008C /* WeeklyProgressCard.swift */,
+				A1B2C3D40000008E /* EnduranceProgressionSection.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -161,6 +172,7 @@
 				A1B2C3D40000000A /* AnthropicService.swift */,
 				A1B2C3D40000000F /* HealthKitManager.swift */,
 				A1B2C3D400000082 /* CoachInsightsService.swift */,
+				A1B2C3D40000008A /* WeeklyProgressService.swift */,
 			);
 			path = Services;
 			sourceTree = "<group>";
@@ -269,6 +281,10 @@
 				A1B2C3D400000085 /* CoachInsightCard.swift in Sources */,
 				A1B2C3D400000087 /* WorkoutsSheetView.swift in Sources */,
 				A1B2C3D400000089 /* InsightsSheetView.swift in Sources */,
+				A1B2C3D40000008B /* WeeklyProgressService.swift in Sources */,
+				A1B2C3D40000008D /* WeeklyProgressCard.swift in Sources */,
+				A1B2C3D40000008F /* EnduranceProgressionSection.swift in Sources */,
+				A1B2C3D400000091 /* EnduranceTarget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

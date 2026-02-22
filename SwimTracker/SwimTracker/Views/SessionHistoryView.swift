@@ -156,7 +156,7 @@ struct SessionHistoryView: View {
             }
         }
         .navigationTitle("Session History")
-        .navigationBarTitleDisplayMode(.large)
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $selectedSession) { session in
             NavigationStack {
                 SessionDetailView(session: session)

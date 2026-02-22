@@ -29,8 +29,22 @@ final class AnthropicService {
     var errorMessage: String?
     var workoutsUpdated = false
     var proposedWorkouts: [Workout] = []
+    var pendingEnduranceTargets: [EnduranceTarget] = []
 
-    private let systemPrompt = """
+    private var systemPrompt: String {
+        let now = Date()
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "EEEE, MMMM d, yyyy"
+        let dayOfWeek = dateFormatter.string(from: now)
+
+        let calendarContext = """
+        TODAY'S DATE: \(dayOfWeek)
+        Use this date as the reference point for all scheduling. "days_from_now" = 0 means today, \
+        1 means tomorrow, etc. Never schedule workouts in the past.
+
+        """
+
+        return calendarContext + """
     You are an expert swim coach helping me train for the Alcatraz swim \
     (1.5 miles / 2.4km from Alcatraz Island to San Francisco) on August 30, 2026.
 
@@ -105,6 +119,18 @@ final class AnthropicService {
 
     Always ensure your total_distance field matches the sum of (reps × distance) for all sets.
 
+    ENDURANCE TARGETS:
+    When creating a training plan or when the swimmer asks about progression, use the \
+    set_endurance_targets tool to set weekly endurance targets (longest continuous swim distance). \
+    Guidelines for realistic targets:
+    - Increase by 10-15% per week during build phases
+    - Include a recovery week every 3-4 weeks (reduce target by 20-30%)
+    - Never increase more than 20% in a single week
+    - Final target: 3000m continuous by week 30 (late July 2026)
+    - Week numbers are 0-based from January 1, 2026
+    - Always set targets for at least 4-8 weeks ahead
+    - Include coach notes explaining the rationale for key weeks (recovery, breakthrough, etc.)
+
     OFFERING CHOICES:
     When offering the user multiple approaches or choices, format them with markers so \
     the app can render them as tappable cards:
@@ -124,6 +150,7 @@ final class AnthropicService {
 
     Which would you prefer?
     """
+    }
 
     private let workoutTool: [String: Any] = [
         "name": "update_workouts",
@@ -201,6 +228,39 @@ final class AnthropicService {
         ] as [String: Any]
     ]
 
+    private let enduranceTargetTool: [String: Any] = [
+        "name": "set_endurance_targets",
+        "description": "Set weekly endurance targets (longest continuous swim distance in meters) for the swimmer's training plan. Use this when creating or updating a training plan to define progressive weekly goals.",
+        "input_schema": [
+            "type": "object",
+            "properties": [
+                "targets": [
+                    "type": "array",
+                    "description": "Array of weekly endurance target objects",
+                    "items": [
+                        "type": "object",
+                        "properties": [
+                            "week_number": [
+                                "type": "integer",
+                                "description": "Week number (0-based from January 1, 2026)"
+                            ],
+                            "target_distance": [
+                                "type": "number",
+                                "description": "Target longest continuous swim distance in meters for this week"
+                            ],
+                            "notes": [
+                                "type": "string",
+                                "description": "Optional coach notes for this week (e.g. 'Recovery week', 'Breakthrough attempt')"
+                            ]
+                        ] as [String: Any],
+                        "required": ["week_number", "target_distance"]
+                    ] as [String: Any]
+                ]
+            ] as [String: Any],
+            "required": ["targets"]
+        ] as [String: Any]
+    ]
+
     func sendMessage(
         userContent: String,
         conversationHistory: [ChatMessage],
@@ -228,10 +288,10 @@ final class AnthropicService {
         messages.append(["role": "user", "content": fullUserContent])
 
         let body: [String: Any] = [
-            "model": "claude-haiku-4-5-20251001",
+            "model": "claude-sonnet-4-6",
             "max_tokens": 4096,
             "system": systemPrompt,
-            "tools": [workoutTool],
+            "tools": [workoutTool, enduranceTargetTool],
             "messages": messages
         ]
 
@@ -265,24 +325,41 @@ final class AnthropicService {
         }
 
         var textResponse = ""
-        var toolUseId: String?
-        var toolInput: [String: Any]?
+        var toolCalls: [(id: String, name: String, input: [String: Any])] = []
 
         for block in contentBlocks {
             let blockType = block["type"] as? String
             if blockType == "text", let text = block["text"] as? String {
                 textResponse += text
-            } else if blockType == "tool_use" {
-                toolUseId = block["id"] as? String
-                toolInput = block["input"] as? [String: Any]
+            } else if blockType == "tool_use",
+                      let toolId = block["id"] as? String,
+                      let toolName = block["name"] as? String,
+                      let toolInput = block["input"] as? [String: Any] {
+                toolCalls.append((id: toolId, name: toolName, input: toolInput))
             }
         }
 
-        // Handle tool call
-        if let toolId = toolUseId, let input = toolInput {
-            let toolResult = processWorkoutTool(input: input)
+        // Handle tool calls
+        if !toolCalls.isEmpty {
+            var toolResults: [[String: Any]] = []
+            for call in toolCalls {
+                let result: String
+                switch call.name {
+                case "update_workouts":
+                    result = processWorkoutTool(input: call.input)
+                case "set_endurance_targets":
+                    result = processEnduranceTargetTool(input: call.input)
+                default:
+                    result = "Unknown tool: \(call.name)"
+                }
+                toolResults.append([
+                    "type": "tool_result",
+                    "tool_use_id": call.id,
+                    "content": result
+                ] as [String: Any])
+            }
 
-            // Send tool result back to get final text response
+            // Send tool results back to get final text response
             var followUpMessages = messages
             followUpMessages.append([
                 "role": "assistant",
@@ -290,20 +367,14 @@ final class AnthropicService {
             ])
             followUpMessages.append([
                 "role": "user",
-                "content": [
-                    [
-                        "type": "tool_result",
-                        "tool_use_id": toolId,
-                        "content": toolResult
-                    ] as [String: Any]
-                ]
+                "content": toolResults
             ])
 
             let followUpBody: [String: Any] = [
-                "model": "claude-haiku-4-5-20251001",
+                "model": "claude-sonnet-4-6",
                 "max_tokens": 2048,
                 "system": systemPrompt,
-                "tools": [workoutTool],
+                "tools": [workoutTool, enduranceTargetTool],
                 "messages": followUpMessages
             ]
 
@@ -340,8 +411,12 @@ final class AnthropicService {
         }
 
         let calendar = Calendar.current
-        let today = Date.now
+        let today = calendar.startOfDay(for: Date.now)
         var parsed: [Workout] = []
+
+        let dateFormatter = DateFormatter()
+        dateFormatter.dateFormat = "yyyy-MM-dd (EEEE)"
+        print("[Coach] Processing workouts. Today is: \(dateFormatter.string(from: today))")
 
         for workoutData in workoutsArray {
             guard let title = workoutData["title"] as? String,
@@ -353,7 +428,14 @@ final class AnthropicService {
                 continue
             }
 
-            let scheduledDate = calendar.date(byAdding: .day, value: daysFromNow, to: today) ?? today
+            var scheduledDate = calendar.date(byAdding: .day, value: daysFromNow, to: today) ?? today
+
+            // Validate: never schedule in the past
+            if scheduledDate < today {
+                print("[Coach] ⚠️ '\(title)' had past date (days_from_now=\(daysFromNow)). Correcting to tomorrow.")
+                scheduledDate = calendar.date(byAdding: .day, value: 1, to: today) ?? today
+            }
+            print("[Coach] '\(title)' scheduled for \(dateFormatter.string(from: scheduledDate)) (days_from_now=\(daysFromNow))")
             let notes = workoutData["notes"] as? String
 
             var sets: [WorkoutSet] = []
@@ -397,6 +479,55 @@ final class AnthropicService {
 
         proposedWorkouts = parsed
         return "Successfully created \(parsed.count) workouts."
+    }
+
+    private func processEnduranceTargetTool(input: [String: Any]) -> String {
+        guard let targetsArray = input["targets"] as? [[String: Any]] else {
+            return "Error: Invalid targets data"
+        }
+
+        var parsed: [EnduranceTarget] = []
+
+        for targetData in targetsArray {
+            guard let weekNumber = targetData["week_number"] as? Int,
+                  let targetDistance = targetData["target_distance"] as? Double else {
+                continue
+            }
+            let notes = targetData["notes"] as? String
+            let target = EnduranceTarget(
+                weekNumber: weekNumber,
+                targetDistance: targetDistance,
+                coachNotes: notes
+            )
+            parsed.append(target)
+            print("[Coach] Endurance target: week \(weekNumber) → \(Int(targetDistance))m\(notes.map { " (\($0))" } ?? "")")
+        }
+
+        pendingEnduranceTargets = parsed
+        return "Successfully set \(parsed.count) endurance targets."
+    }
+
+    func savePendingEnduranceTargets(modelContext: ModelContext) {
+        guard !pendingEnduranceTargets.isEmpty else { return }
+
+        for target in pendingEnduranceTargets {
+            // Upsert: update existing week entry or insert new one
+            let weekNum = target.weekNumber
+            let descriptor = FetchDescriptor<EnduranceTarget>(
+                predicate: #Predicate { $0.weekNumber == weekNum }
+            )
+            if let existing = try? modelContext.fetch(descriptor).first {
+                existing.targetDistance = target.targetDistance
+                existing.setDate = target.setDate
+                existing.coachNotes = target.coachNotes
+                print("[Coach] Updated endurance target for week \(weekNum): \(Int(target.targetDistance))m")
+            } else {
+                modelContext.insert(target)
+                print("[Coach] Inserted endurance target for week \(weekNum): \(Int(target.targetDistance))m")
+            }
+        }
+        try? modelContext.save()
+        pendingEnduranceTargets = []
     }
 
     func analyzeWorkout(session: SwimSession, recentSessions: [SwimSession]) async throws -> WorkoutAnalysis? {
@@ -464,7 +595,7 @@ final class AnthropicService {
         """
 
         let body: [String: Any] = [
-            "model": "claude-haiku-4-5-20251001",
+            "model": "claude-sonnet-4-6",
             "max_tokens": 1024,
             "system": "You are an expert swim coach analyzing workout data from an Apple Watch. Provide constructive, specific feedback focusing on technique efficiency (SWOLF), pacing strategy, effort management, and progress trends. Respond ONLY with valid JSON. No markdown, no code blocks, no explanations — just the raw JSON object.",
             "messages": [

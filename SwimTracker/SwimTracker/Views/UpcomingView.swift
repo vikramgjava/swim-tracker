@@ -40,6 +40,7 @@ struct UpcomingView: View {
                 }
             }
             .navigationTitle("Upcoming")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 if upcomingWorkouts.isEmpty {
                     ToolbarItem(placement: .topBarLeading) {
