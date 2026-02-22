@@ -15,6 +15,7 @@ enum MonthlyTimeRange: String, CaseIterable {
 struct StatisticsView: View {
     @Binding var isDarkMode: Bool
     @Query(sort: \SwimSession.date) private var allSessions: [SwimSession]
+    @Query(sort: \EnduranceTarget.weekNumber) private var enduranceTargets: [EnduranceTarget]
     @State private var selectedWeekIndex: Int = 7 // 0-7, default to current week (index 7)
     @State private var selectedMonthIndex: Int = 0 // 0 = latest month (reversed order)
     @AppStorage("monthlyProgressTimeRange") private var monthlyTimeRange: String = MonthlyTimeRange.thisYear.rawValue
@@ -46,6 +47,7 @@ struct StatisticsView: View {
                             } else {
                                 weeklyComparisonSection
                                 monthlyComparisonSection
+                                EnduranceProgressionSection(sessions: allSessions, enduranceTargets: enduranceTargets)
                                 if hasDetailedData { efficiencyMetricsSection }
                                 paceAnalysisSection
                                 if hasDetailedData { heartRateAnalysisSection }
@@ -81,6 +83,7 @@ struct StatisticsView: View {
                 }
             }
             .navigationTitle("Statistics")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

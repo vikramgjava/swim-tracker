@@ -38,36 +38,34 @@ struct WorkoutsSheetView: View {
 
     private var workoutContent: some View {
         VStack(spacing: 0) {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 14) {
-                    ForEach(upcomingWorkouts) { workout in
-                        WorkoutCalendarCard(
+            ScrollView {
+                VStack(spacing: 12) {
+                    ForEach(Array(upcomingWorkouts.prefix(4))) { workout in
+                        WorkoutRowCard(
                             workout: workout,
-                            onView: { selectedWorkout = workout }
+                            onTap: { selectedWorkout = workout }
                         )
                     }
                 }
                 .padding(.horizontal)
                 .padding(.vertical, 16)
             }
-            .scrollTargetBehavior(.viewAligned)
 
-            Spacer()
+            Divider()
 
             Button {
                 dismiss()
-                // Small delay to let sheet dismiss before sending message
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                     onRegenerate()
                 }
             } label: {
                 Label("Regenerate All Workouts", systemImage: "arrow.triangle.2.circlepath")
-                    .font(.headline)
+                    .font(.subheadline.bold())
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.bordered)
             .padding(.horizontal, 24)
-            .padding(.bottom, 24)
+            .padding(.vertical, 16)
         }
     }
 
@@ -102,126 +100,89 @@ struct WorkoutsSheetView: View {
     }
 }
 
-// MARK: - Workout Calendar Card
+// MARK: - Workout Row Card
 
-struct WorkoutCalendarCard: View {
+struct WorkoutRowCard: View {
     let workout: Workout
-    var onView: () -> Void
+    var onTap: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Date header
-            dateHeader
-                .padding(12)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(effortColor.opacity(0.15))
+        Button {
+            onTap()
+        } label: {
+            HStack(spacing: 0) {
+                // Color-coded left edge
+                effortColor
+                    .frame(width: 4)
 
-            Divider()
-
-            // Body
-            VStack(alignment: .leading, spacing: 10) {
-                // Effort badge
-                Text(effortLabel.uppercased())
-                    .font(.caption.bold())
-                    .foregroundStyle(effortColor)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(effortColor.opacity(0.12), in: Capsule())
-
-                // Distance
-                Text(formattedDistance)
-                    .font(.title2.bold())
-                    .foregroundStyle(.primary)
-
-                // Focus
-                Text(workout.focus)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
-
-                Divider()
-
-                // Set summary
-                setSummary
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Spacer(minLength: 0)
-
-                // View button
-                Button {
-                    onView()
-                } label: {
+                VStack(spacing: 0) {
+                    // Top row: date, badge, distance
                     HStack {
-                        Text("View Details")
-                            .font(.caption.bold())
-                        Image(systemName: "chevron.right")
-                            .font(.caption2)
+                        Text(dateLabel)
+                            .font(.subheadline.bold())
+                            .foregroundStyle(.primary)
+
+                        Text(effortLabel.uppercased())
+                            .font(.caption2.bold())
+                            .foregroundStyle(effortColor)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 2)
+                            .background(effortColor.opacity(0.12), in: Capsule())
+
+                        Spacer()
+
+                        Text("\(workout.totalDistance)m")
+                            .font(.headline)
+                            .foregroundStyle(.primary)
                     }
-                    .foregroundStyle(effortColor)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(effortColor.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+
+                    Spacer(minLength: 6)
+
+                    // Bottom row: set summary + chevron
+                    HStack {
+                        Text(setSummaryText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+
+                        Spacer()
+
+                        Image(systemName: "chevron.right")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                    }
                 }
-                .buttonStyle(.plain)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 12)
             }
-            .padding(12)
+            .frame(maxWidth: .infinity)
+            .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color(.systemGray4), lineWidth: 1)
+            )
+            .shadow(color: .black.opacity(0.05), radius: 4, y: 2)
+            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
-        .frame(width: 200, height: 320)
-        .background(Color(.systemBackground), in: RoundedRectangle(cornerRadius: 16))
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Color(.systemGray4), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.08), radius: 8, y: 4)
-        .scrollTransition { content, phase in
-            content
-                .opacity(phase.isIdentity ? 1 : 0.8)
-                .scaleEffect(phase.isIdentity ? 1 : 0.95)
-        }
+        .buttonStyle(.plain)
     }
 
-    // MARK: - Date Header
+    // MARK: - Date
 
-    private var dateHeader: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(dayLabel)
-                .font(.headline)
-                .foregroundStyle(.primary)
-            Text(monthLabel)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    private var dayLabel: String {
+    private var dateLabel: String {
         let calendar = Calendar.current
         if calendar.isDateInToday(workout.scheduledDate) {
             return "Today"
         } else if calendar.isDateInTomorrow(workout.scheduledDate) {
             return "Tomorrow"
         } else {
-            // Show "Sat 22" style
             let formatter = DateFormatter()
-            formatter.dateFormat = "EEE d"
+            formatter.dateFormat = "EEE, MMM d"
             return formatter.string(from: workout.scheduledDate)
         }
     }
 
-    private var monthLabel: String {
-        let calendar = Calendar.current
-        if calendar.isDateInToday(workout.scheduledDate) || calendar.isDateInTomorrow(workout.scheduledDate) {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "EEE d MMM"
-            return formatter.string(from: workout.scheduledDate)
-        } else {
-            let formatter = DateFormatter()
-            formatter.dateFormat = "MMMM"
-            return formatter.string(from: workout.scheduledDate)
-        }
-    }
-
-    // MARK: - Effort Parsing
+    // MARK: - Effort
 
     private var effortLabel: String {
         let effort = parseEffort(workout.effortLevel)
@@ -238,7 +199,6 @@ struct WorkoutCalendarCard: View {
     }
 
     private func parseEffort(_ effortLevel: String) -> Int {
-        // Parse strings like "6-7/10", "8/10", "5-6/10"
         let cleaned = effortLevel.replacingOccurrences(of: "/10", with: "")
         let parts = cleaned.split(separator: "-")
         if let last = parts.last, let value = Int(last.trimmingCharacters(in: .whitespaces)) {
@@ -247,63 +207,41 @@ struct WorkoutCalendarCard: View {
         return 5
     }
 
-    // MARK: - Distance
+    // MARK: - Set Summary (single-line)
 
-    private var formattedDistance: String {
-        let dist = workout.totalDistance
-        if dist >= 1000 {
-            let km = Double(dist) / 1000.0
-            if km.truncatingRemainder(dividingBy: 1) == 0 {
-                return "\(Int(km)),000m"
-            }
-            return String(format: "%.1fkm", km)
-        }
-        return "\(dist)m"
-    }
-
-    // MARK: - Set Summary
-
-    private var setSummary: some View {
+    private var setSummaryText: String {
         let sets = workout.sets
+        var parts: [String] = []
+
         let warmup = sets.filter { $0.type == "Warm-up" }
-        let main = sets.filter { ["Main", "Anaerobic", "Open Water"].contains($0.type) }
+        if !warmup.isEmpty {
+            let dist = warmup.reduce(0) { $0 + $1.reps * $1.distance }
+            parts.append("Warm: \(dist)m")
+        }
+
         let focus = sets.filter { ["KICK", "PULL"].contains($0.type) }
-        let allNonWarmup = main + focus
+        for s in focus {
+            parts.append("\(s.type): \(setDesc(s))")
+        }
 
-        return VStack(alignment: .leading, spacing: 4) {
-            if !warmup.isEmpty {
-                Text("Warm: \(warmup.reduce(0) { $0 + $1.reps * $1.distance })m")
-            }
+        let main = sets.filter { ["Main", "Anaerobic", "Open Water"].contains($0.type) }
+        if let first = main.first {
+            var desc = "Main: \(setDesc(first))"
+            if main.count > 1 { desc += " +\(main.count - 1)" }
+            parts.append(desc)
+        }
 
-            ForEach(focus) { s in
-                Text("\(s.type): \(setSummaryLine(s))")
-                    .lineLimit(1)
-            }
-
-            ForEach(Array(main.prefix(2))) { s in
-                Text("Main: \(setSummaryLine(s))")
-                    .lineLimit(1)
-            }
-
-            if main.count > 2 {
-                Text("+ \(main.count - 2) more sets")
-                    .italic()
-            }
-
-            if warmup.isEmpty && allNonWarmup.isEmpty && !sets.isEmpty {
-                ForEach(Array(sets.prefix(3))) { s in
-                    Text("\(s.type): \(setSummaryLine(s))")
-                        .lineLimit(1)
-                }
+        if parts.isEmpty && !sets.isEmpty {
+            for s in sets.prefix(2) {
+                parts.append("\(s.type): \(setDesc(s))")
             }
         }
+
+        return parts.joined(separator: " \u{2022} ")
     }
 
-    private func setSummaryLine(_ set: WorkoutSet) -> String {
-        if set.reps == 1 {
-            return "\(set.distance)m"
-        }
-        return "\(set.reps)\u{00d7}\(set.distance)m"
+    private func setDesc(_ set: WorkoutSet) -> String {
+        set.reps == 1 ? "\(set.distance)m" : "\(set.reps)\u{00d7}\(set.distance)m"
     }
 }
 

@@ -10,6 +10,7 @@ struct ChatView: View {
         filter: #Predicate<Workout> { !$0.isCompleted },
         sort: \Workout.scheduledDate
     ) private var upcomingWorkouts: [Workout]
+    @Query(sort: \EnduranceTarget.weekNumber) private var enduranceTargets: [EnduranceTarget]
 
     @State private var service = AnthropicService()
     @State private var insightsService = CoachInsightsService()
@@ -136,6 +137,7 @@ struct ChatView: View {
                 }
             }
             .navigationTitle("Coach")
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
@@ -186,6 +188,11 @@ struct ChatView: View {
                         cardWorkouts = service.proposedWorkouts
                         workoutCardStatus = .pending
                     }
+                }
+            }
+            .onChange(of: service.pendingEnduranceTargets.count) {
+                if !service.pendingEnduranceTargets.isEmpty {
+                    service.savePendingEnduranceTargets(modelContext: modelContext)
                 }
             }
             .sheet(isPresented: $showWorkoutPreview) {
@@ -419,6 +426,17 @@ struct ChatView: View {
             parts.append(summary)
         }
 
+        // Current endurance targets
+        if !enduranceTargets.isEmpty {
+            var targetLines = ["CURRENT ENDURANCE TARGETS (weekly longest continuous swim):"]
+            for t in enduranceTargets {
+                var line = "  Week \(t.weekNumber): \(Int(t.targetDistance))m"
+                if let notes = t.coachNotes { line += " — \(notes)" }
+                targetLines.append(line)
+            }
+            parts.append(targetLines.joined(separator: "\n"))
+        }
+
         // Existing upcoming workouts
         if !upcomingWorkouts.isEmpty {
             var workoutLines = ["CURRENT UPCOMING WORKOUTS:"]
@@ -589,5 +607,5 @@ struct MessageBubble: View {
 
 #Preview {
     ChatView(isDarkMode: .constant(false))
-        .modelContainer(for: [SwimSession.self, ChatMessage.self, Workout.self], inMemory: true)
+        .modelContainer(for: [SwimSession.self, ChatMessage.self, Workout.self, EnduranceTarget.self], inMemory: true)
 }
