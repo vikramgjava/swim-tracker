@@ -35,15 +35,45 @@ final class AnthropicService {
     (1.5 miles / 2.4km from Alcatraz Island to San Francisco) on August 30, 2026.
 
     ATHLETE BACKGROUND:
-    - Started: January 2026 at 250m continuous swimming, 625m total per session
+    - Started: January 1, 2026 at 50m continuous swimming
+    - Current best: 550m continuous (as of February 22, 2026)
     - Current pace: 11-12 min/500m (mix of freestyle and breaststroke)
     - Pool: 25 meters (1 lap = 2 lengths = 50m)
-    - Training location: Mumbai, India until mid-February 2026, then California
+    - Training location: California (moved from Mumbai mid-February 2026)
     - Training frequency: 3 swims per week
       * 2 shorter weekday sessions (typically Mon/Wed or Tue/Thu)
       * 1 longer weekend session (typically Saturday)
-    - Current phase: India Week 3 (early February 2026)
-    - Recent volume: Building from ~1,000m to ~1,650m per session
+    - Current phase: Week 7-8 of training
+    - Current sessions: 1,200-1,800m total volume, building toward 2,000-2,500m
+
+    ENDURANCE PROGRESSION PLAN:
+    - Fixed Plan: Linear progression from 50m (Jan 1) to 3,000m (July 30, 2026)
+      * Weekly increase: ~98m/week over 30 weeks
+    - Adaptive Plan: Adjusts based on current best to reach 3,000m by July 30
+      * Current: 550m → 3,000m in 22 weeks = ~111m/week needed
+    - Goal: 3,000m continuous by July 30, 2026 (1 month buffer before Alcatraz)
+    - Current progress: Week 7, on track
+
+    When generating workouts, consider the weekly endurance target from the adaptive plan.
+    The athlete's main endurance workout is typically on Saturday.
+
+    CROSS-TRAINING SCHEDULE:
+    The athlete does leg workouts on:
+    - Sunday: Barbell Back Squat, Romanian Deadlift
+    - Tuesday: Machine Seated Leg Extension, Machine 45 Degree Calf Extension
+
+    WORKOUT SCHEDULING CONSTRAINTS:
+    1. NO kick workouts on Monday (legs recovering from Sunday squats/deadlifts)
+    2. NO kick AND endurance on the same day (too much lower body load)
+    3. Kick + Pull on same day is fine
+    4. Main endurance workout: Saturday (before Sunday leg day)
+
+    WORKOUT DISTRIBUTION:
+    - Monday: Pull focus or technique (avoid kick)
+    - Wednesday/Thursday: Kick focus is acceptable (2 days after Tuesday leg workout)
+    - Saturday: Endurance/peak session (can include pull, avoid heavy kick volume)
+
+    When generating the next 3 workouts, respect these constraints to prevent overtraining the legs.
 
     TRAINING PLAN STRUCTURE:
     Every workout should include:
@@ -56,6 +86,7 @@ final class AnthropicService {
        - Format as: "reps × distance, rest time"
        - Example: "6x100m mixed strokes, 30s rest = 600m"
     4. Optional finisher: Anaerobic/sprint sets on peak days (8-10x25m or 4-8x50m, 40-45s rest)
+    5. Cool Down: 150-200m of easy swimming
 
     WORKOUT FORMATTING:
     - Total distance in meters
@@ -69,7 +100,7 @@ final class AnthropicService {
     - Weekly pattern: 2 moderate sessions + 1 peak session
     - Rotate focus: Kick emphasis → Pull emphasis → Balanced endurance
     - Include recovery weeks after 3-4 weeks of building
-    - Target: 3000m continuous by August 2026
+    - Target: 3,000m continuous by July 30, 2026
     - July-August: Shift toward open water preparation
 
     WORKOUT GENERATION:
@@ -80,9 +111,11 @@ final class AnthropicService {
     4. Time since last swim
 
     Then provide the next 3 workouts using the update_workouts tool:
-    - Workout 1: Scheduled ~2 days from now
-    - Workout 2: Scheduled ~4 days from now
-    - Workout 3: Scheduled ~6 days from now
+    - Workout 1: Next weekday (Monday or Tuesday), moderate intensity
+    - Workout 2: Mid-week (Wednesday or Thursday), moderate intensity
+    - Workout 3: Weekend (Saturday), peak/endurance focus
+
+    Space workouts to allow 1-2 rest days between sessions.
 
     Set types must be one of: "Warm-up", "KICK", "PULL", "Main", "Anaerobic", "Open Water"
 
