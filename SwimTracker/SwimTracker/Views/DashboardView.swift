@@ -244,46 +244,68 @@ struct DashboardView: View {
             print("[Dashboard] Goal Progress: longestContinuousSwim=\(Int(longestContinuousSwim))m, progress=\(Int(progress * 100))%")
         }()
 
-        // Estimate completion from progression of longest continuous swims
+        // Best longestContinuousDistance per calendar week (last 5 weeks)
         let sortedByDate = sessions.sorted { $0.date < $1.date }
-        let progressionPoints: [(date: Date, best: Double)] = {
-            var runningMax = 0.0
-            return sortedByDate.compactMap { session in
-                let continuous = session.longestContinuousDistance
-                if continuous > runningMax {
-                    runningMax = continuous
-                    return (date: session.date, best: runningMax)
+        let calendar = Calendar.current
+        let weeklyBests: [Double] = {
+            var result: [Double] = []
+            for weeksAgo in stride(from: 4, through: 0, by: -1) {
+                let weekStart = calendar.date(byAdding: .day, value: -7 * (weeksAgo + 1), to: .now)!
+                let weekEnd = calendar.date(byAdding: .day, value: -7 * weeksAgo, to: .now)!
+                let weekSessions = sessions.filter { $0.date > weekStart && $0.date <= weekEnd }
+                if let best = weekSessions.map(\.longestContinuousDistance).max() {
+                    result.append(best)
                 }
-                return nil
+            }
+            return result
+        }()
+
+        // Weighted rate (meters/week) from week-over-week improvements
+        let weightedRate: Double? = {
+            guard weeklyBests.count >= 2 else { return nil }
+            var totalWeight = 0.0
+            var weightedSum = 0.0
+            for i in 0..<(weeklyBests.count - 1) {
+                let improvement = weeklyBests[i + 1] - weeklyBests[i]
+                let weight = pow(2.0, Double(i)) // recent pairs weigh more
+                weightedSum += improvement * weight
+                totalWeight += weight
+            }
+            let ratePerWeek = weightedSum / totalWeight
+            return ratePerWeek > 0 ? ratePerWeek / 7.0 : nil // convert to meters/day
+        }()
+        let _ = {
+            print("[Dashboard] Weekly bests (last 5wk): \(weeklyBests.map { "\(Int($0))m" }.joined(separator: " → "))")
+            if let rate = weightedRate {
+                print("[Dashboard] Rate calc: \(String(format: "%.1f", rate)) m/day (\(String(format: "%.0f", rate * 7)) m/wk)")
+            } else {
+                print("[Dashboard] Rate calc: insufficient data")
             }
         }()
 
         let estimatedCompletion: String = {
-            guard progressionPoints.count >= 2 else { return "Need more data" }
-            let first = progressionPoints.first!
-            let last = progressionPoints.last!
-            let daysBetween = max(last.date.timeIntervalSince(first.date) / 86400, 1)
-            let distanceGain = last.best - first.best
-            guard distanceGain > 0 else { return "Need more data" }
+            guard let rate = weightedRate else { return "Need more data" }
             let remaining = goalDistance - longestContinuousSwim
-            let daysNeeded = remaining / (distanceGain / daysBetween)
+            guard remaining > 0 else { return "Done!" }
+            let daysNeeded = remaining / rate
             let estimatedDate = Calendar.current.date(byAdding: .day, value: Int(daysNeeded), to: .now)
             return estimatedDate?.formatted(date: .abbreviated, time: .omitted) ?? "N/A"
         }()
 
+        let deadline = Calendar.current.date(from: DateComponents(year: 2026, month: 8, day: 30)) ?? .now
+        let remaining = goalDistance - longestContinuousSwim
+        let daysUntilDeadline = max(Int(deadline.timeIntervalSince(.now) / 86400), 1)
+
         let isOnTrack: Bool = {
-            let deadline = Calendar.current.date(from: DateComponents(year: 2026, month: 8, day: 30)) ?? .now
-            guard progressionPoints.count >= 2 else { return false }
-            let first = progressionPoints.first!
-            let last = progressionPoints.last!
-            let daysBetween = max(last.date.timeIntervalSince(first.date) / 86400, 1)
-            let distanceGain = last.best - first.best
-            guard distanceGain > 0 else { return false }
-            let remaining = goalDistance - longestContinuousSwim
-            let daysNeeded = remaining / (distanceGain / daysBetween)
+            guard let rate = weightedRate else { return false }
+            guard remaining > 0 else { return true }
+            let daysNeeded = remaining / rate
             let estimatedDate = Calendar.current.date(byAdding: .day, value: Int(daysNeeded), to: .now) ?? .distantFuture
             return estimatedDate <= deadline
         }()
+
+        let currentRatePerWeek = (weightedRate ?? 0) * 7
+        let requiredRatePerWeek = remaining > 0 ? remaining / Double(daysUntilDeadline) * 7 : 0
 
         return VStack(spacing: 16) {
             HStack(spacing: 8) {
@@ -365,13 +387,27 @@ struct DashboardView: View {
             HStack(spacing: 6) {
                 Image(systemName: isOnTrack ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                     .foregroundStyle(isOnTrack ? .green : .red)
-                Text(isOnTrack ? "On track for Aug 30, 2026" : "Need to accelerate training")
-                    .font(.caption.bold())
-                    .foregroundStyle(isOnTrack ? .green : .red)
+                if isOnTrack {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(Int(remaining))m to go · \(daysUntilDeadline) days left")
+                            .font(.caption.bold())
+                        Text("Current: ~\(Int(currentRatePerWeek))m/wk · Need: ~\(Int(requiredRatePerWeek))m/wk")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.green)
+                } else {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("\(Int(remaining))m to go · \(daysUntilDeadline) days left")
+                            .font(.caption.bold())
+                        Text("Current: ~\(Int(currentRatePerWeek))m/wk · Need: ~\(Int(requiredRatePerWeek))m/wk")
+                            .font(.caption2)
+                    }
+                    .foregroundStyle(.red)
+                }
             }
             .padding(.vertical, 6)
             .padding(.horizontal, 12)
-            .background((isOnTrack ? Color.green : Color.red).opacity(0.1), in: Capsule())
+            .background((isOnTrack ? Color.green : Color.red).opacity(0.1), in: RoundedRectangle(cornerRadius: 10))
 
             // Endurance Capacity
             enduranceCapacitySection
