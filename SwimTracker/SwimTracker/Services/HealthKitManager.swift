@@ -79,9 +79,9 @@ class HealthKitManager {
     }
 
     func extractWorkoutData(workout: HKWorkout) -> (distance: Double, duration: Double, date: Date) {
-        let distanceMeters = workout.totalDistance?.doubleValue(for: .meter()) ?? 0
+        let distanceYards = workout.totalDistance?.doubleValue(for: .yard()) ?? 0
         let durationMinutes = workout.duration / 60.0
-        return (distance: distanceMeters, duration: durationMinutes, date: workout.startDate)
+        return (distance: distanceYards, duration: durationMinutes, date: workout.startDate)
     }
 
     // MARK: - Effort Score
@@ -142,7 +142,7 @@ class HealthKitManager {
         // Build laps from distance samples (each sample = one lap)
         guard !distances.isEmpty else {
             // Fallback: single lap for the whole workout
-            let totalDist = workout.totalDistance?.doubleValue(for: .meter()) ?? 0
+            let totalDist = workout.totalDistance?.doubleValue(for: .yard()) ?? 0
             let duration = workout.duration
             let bpmUnit = HKUnit.count().unitDivided(by: .minute())
             let allHR = hrSamples.map { Int($0.quantity.doubleValue(for: bpmUnit)) }
@@ -166,7 +166,7 @@ class HealthKitManager {
                 averageHeartRate: avgHR,
                 maxHeartRate: maxHR
             )
-            print("[HealthKit] Fallback: no distance samples, single set. totalDistance=\(Int(totalDist))m, longestContinuousDistance=\(Int(totalDist))m")
+            print("[HealthKit] Fallback: no distance samples, single set. totalDistance=\(Int(totalDist))yd, longestContinuousDistance=\(Int(totalDist))yd")
             return WorkoutDetailedData(
                 sets: [set],
                 totalDistance: totalDist,
@@ -184,7 +184,7 @@ class HealthKitManager {
         var lapEndTimes: [Date] = []
 
         for sample in distances {
-            let lapDistance = sample.quantity.doubleValue(for: .meter())
+            let lapDistance = sample.quantity.doubleValue(for: .yard())
             let lapDuration = sample.endDate.timeIntervalSince(sample.startDate)
             let lapStart = sample.startDate
             let lapEnd = sample.endDate
@@ -196,7 +196,7 @@ class HealthKitManager {
             // Compute SWOLF = strokeCount + duration in seconds
             let swolf: Int? = strokeCount.map { $0 + Int(lapDuration) }
 
-            // Compute pace = (duration / 60) / (distance / 100) minutes per 100m
+            // Compute pace = (duration / 60) / (distance / 100) minutes per 100 yards
             let pace: Double? = lapDistance > 0 ? (lapDuration / 60.0) / (lapDistance / 100.0) : nil
 
             // Get stroke style from metadata on stroke count samples
@@ -262,9 +262,9 @@ class HealthKitManager {
         let maxHR = allHRValues.max()
 
         let longestContinuousDistance = sets.map(\.totalDistance).max() ?? totalDistance
-        print("[HealthKit] Workout details: \(sets.count) sets, totalDistance=\(Int(totalDistance))m, longestContinuousDistance=\(Int(longestContinuousDistance))m")
+        print("[HealthKit] Workout details: \(sets.count) sets, totalDistance=\(Int(totalDistance))yd, longestContinuousDistance=\(Int(longestContinuousDistance))yd")
         for (i, set) in sets.enumerated() {
-            print("[HealthKit]   Set \(i+1): \(Int(set.totalDistance))m, \(set.laps.count) laps, SWOLF=\(set.averageSWOLF.map { String(Int($0)) } ?? "N/A"), stroke=\(set.strokeType)")
+            print("[HealthKit]   Set \(i+1): \(Int(set.totalDistance))yd, \(set.laps.count) laps, SWOLF=\(set.averageSWOLF.map { String(Int($0)) } ?? "N/A"), stroke=\(set.strokeType)")
         }
 
         return WorkoutDetailedData(

@@ -60,10 +60,10 @@ struct WeeklyEnduranceCard: View {
                 .foregroundStyle(.secondary)
 
             VStack(alignment: .leading, spacing: 2) {
-                Text("Target: \(Int(week.targetDistance))m continuous")
+                Text("Target: \(Int(week.targetDistance))yd continuous")
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
-                Text("Best So Far: \(Int(week.bestAchieved))m")
+                Text("Best So Far: \(Int(week.bestAchieved))yd")
                     .font(.title3.bold())
             }
 
@@ -94,7 +94,7 @@ struct WeeklyEnduranceCard: View {
                         Circle()
                             .fill(.orange)
                             .frame(width: 8, height: 8)
-                        Text("Need \(Int(remaining))m more")
+                        Text("Need \(Int(remaining))yd more")
                             .font(.caption)
                             .foregroundStyle(.orange)
                     }
@@ -131,10 +131,10 @@ struct WeeklyEnduranceCard: View {
 
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Target: \(Int(week.targetDistance))m continuous")
+                    Text("Target: \(Int(week.targetDistance))yd continuous")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
-                    Text("Best Achieved: \(Int(week.bestAchieved))m")
+                    Text("Best Achieved: \(Int(week.bestAchieved))yd")
                         .font(.title3.bold())
                 }
 
@@ -146,14 +146,14 @@ struct WeeklyEnduranceCard: View {
                             Image(systemName: "checkmark.circle.fill")
                                 .font(.title3)
                                 .foregroundStyle(.green)
-                            Text("+\(Int(diff))m over target")
+                            Text("+\(Int(diff))yd over target")
                                 .font(.caption)
                                 .foregroundStyle(.green)
                         } else {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.title3)
                                 .foregroundStyle(.orange)
-                            Text("\(Int(diff))m under target")
+                            Text("\(Int(diff))yd under target")
                                 .font(.caption)
                                 .foregroundStyle(.orange)
                         }

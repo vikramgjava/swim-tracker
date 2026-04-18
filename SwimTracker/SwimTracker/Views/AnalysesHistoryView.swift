@@ -85,7 +85,7 @@ struct AnalysesHistoryView: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(session.date.formatted(date: .abbreviated, time: .omitted))
                     .font(.subheadline.bold())
-                Text("\(Int(session.distance))m \u{00B7} \(Int(session.duration)) min")
+                Text("\(Int(session.distance))yd \u{00B7} \(Int(session.duration)) min")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

@@ -12,7 +12,7 @@ struct WeeklyEnduranceProgress {
 struct WeeklyEnduranceService {
     private let trainingStart: Date
     private let goalDate: Date
-    private let goalDistance = 3000.0
+    private let goalDistance = 3200.0
     private let coachTargetLookup: [Int: Double]
 
     /// Calendar with Sunday as first day of week
@@ -152,6 +152,6 @@ struct WeeklyEnduranceService {
 
     private func computeBaseline(sessions: [SwimSession]) -> Double {
         let earliest = sessions.min { $0.date < $1.date }
-        return earliest?.longestContinuousDistance ?? 625.0
+        return earliest?.longestContinuousDistance ?? 685.0
     }
 }

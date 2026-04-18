@@ -1,7 +1,9 @@
 import SwiftUI
+import SwiftData
 
 struct ContentView: View {
     @AppStorage("isDarkMode") private var isDarkMode = false
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         TabView {
@@ -26,6 +28,9 @@ struct ContentView: View {
                 }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
+        .task {
+            UnitMigration.migrateIfNeeded(modelContext: modelContext)
+        }
     }
 }
 

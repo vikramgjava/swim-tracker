@@ -49,23 +49,23 @@ final class AnthropicService {
     (1.5 miles / 2.4km from Alcatraz Island to San Francisco) on August 30, 2026.
 
     ATHLETE BACKGROUND:
-    - Started: January 1, 2026 at 50m continuous swimming
-    - Current best: 550m continuous (as of February 22, 2026)
-    - Current pace: 11-12 min/500m (mix of freestyle and breaststroke)
-    - Pool: 25 meters (1 lap = 2 lengths = 50m)
-    - Training location: California (moved from Mumbai mid-February 2026)
+    - Started: January 1, 2026 at ~55 yards continuous swimming (was 50m in Mumbai pool)
+    - Current best: ~600 yards continuous (converted from ~550m prior to pool change)
+    - Current pace: 10-11 min/500 yards (mix of freestyle and breaststroke)
+    - Pool: 25 yards (1 lap = 2 lengths = 50 yards)
+    - Training location: California (moved from Mumbai mid-February 2026; Mumbai pool was 25m)
     - Training frequency: 3 swims per week
       * 2 shorter weekday sessions (typically Mon/Wed or Tue/Thu)
       * 1 longer weekend session (typically Saturday)
     - Current phase: Week 7-8 of training
-    - Current sessions: 1,200-1,800m total volume, building toward 2,000-2,500m
+    - Current sessions: 1,300-2,000 yards total volume, building toward 2,200-2,700 yards
 
     ENDURANCE PROGRESSION PLAN:
-    - Fixed Plan: Linear progression from 50m (Jan 1) to 3,000m (July 30, 2026)
-      * Weekly increase: ~98m/week over 30 weeks
-    - Adaptive Plan: Adjusts based on current best to reach 3,000m by July 30
-      * Current: 550m → 3,000m in 22 weeks = ~111m/week needed
-    - Goal: 3,000m continuous by July 30, 2026 (1 month buffer before Alcatraz)
+    - Fixed Plan: Linear progression toward 3,200 yards (July 30, 2026)
+      * Weekly increase: ~105 yards/week
+    - Adaptive Plan: Adjusts based on current best to reach 3,200 yards by July 30
+      * Current: ~600 yards → 3,200 yards in 22 weeks = ~118 yards/week needed
+    - Goal: 3,200 yards continuous by July 30, 2026 (1 month buffer before Alcatraz, ~1.8 miles)
     - Current progress: Week 7, on track
 
     When generating workouts, consider the weekly endurance target from the adaptive plan.
@@ -91,19 +91,20 @@ final class AnthropicService {
 
     TRAINING PLAN STRUCTURE:
     Every workout should include:
-    1. Warm-up: 150-200m easy swimming
+    1. Warm-up: 150-200 yards easy swimming
     2. Focus set: One of:
        - KICK: Kickboard drills (kick from hips, toes pointed, 60s rest)
        - PULL: Pull buoy drills (upper body focus, 35-40s rest)
        - Technique/drill work
     3. Main set: Progressive distance, 25-35s rest between reps
        - Format as: "reps × distance, rest time"
-       - Example: "6x100m mixed strokes, 30s rest = 600m"
-    4. Optional finisher: Anaerobic/sprint sets on peak days (8-10x25m or 4-8x50m, 40-45s rest)
-    5. Cool Down: 150-200m of easy swimming
+       - Example: "6x100 yards mixed strokes, 30s rest = 600 yards"
+       - Distances must be multiples of 25 (pool is 25 yards per length)
+    4. Optional finisher: Anaerobic/sprint sets on peak days (8-10x25 yards or 4-8x50 yards, 40-45s rest)
+    5. Cool Down: 150-200 yards of easy swimming
 
     WORKOUT FORMATTING:
-    - Total distance in meters
+    - Total distance in yards (all distances must be multiples of 25)
     - Sets broken down: type, reps, distance per rep, rest intervals
     - Effort level: 6-7/10 for moderate, 7-8/10 for peak, 9/10 for sprints
     - Instructions per set (technique cues, intensity notes)
@@ -114,7 +115,7 @@ final class AnthropicService {
     - Weekly pattern: 2 moderate sessions + 1 peak session
     - Rotate focus: Kick emphasis → Pull emphasis → Balanced endurance
     - Include recovery weeks after 3-4 weeks of building
-    - Target: 3,000m continuous by July 30, 2026
+    - Target: 3,200 yards continuous by July 30, 2026
     - July-August: Shift toward open water preparation
 
     WORKOUT GENERATION:
@@ -146,9 +147,9 @@ final class AnthropicService {
     4. If total doesn't match, adjust sets BEFORE responding
 
     Example:
-    User wants: 1500m
-    Your sets: 200m + (8×100m) + 200m = 1200m WRONG
-    Fix: 200m + (10×100m) + 300m = 1500m CORRECT
+    User wants: 1500 yards
+    Your sets: 200 + (8×100) + 200 = 1200 yards WRONG
+    Fix: 200 + (10×100) + 300 = 1500 yards CORRECT
 
     Always ensure your total_distance field matches the sum of (reps × distance) for all sets.
 
@@ -159,7 +160,7 @@ final class AnthropicService {
     - Increase by 10-15% per week during build phases
     - Include a recovery week every 3-4 weeks (reduce target by 20-30%)
     - Never increase more than 20% in a single week
-    - Final target: 3000m continuous by week 30 (late July 2026)
+    - Final target: 3,200 yards continuous by week 30 (late July 2026)
     - Week numbers are 0-based from January 1, 2026
     - Always set targets for at least 4-8 weeks ahead
     - Include coach notes explaining the rationale for key weeks (recovery, breakthrough, etc.)
@@ -207,7 +208,7 @@ final class AnthropicService {
                             ],
                             "total_distance": [
                                 "type": "integer",
-                                "description": "Total workout distance in meters"
+                                "description": "Total workout distance in yards (must be a multiple of 25)"
                             ],
                             "focus": [
                                 "type": "string",
@@ -238,7 +239,7 @@ final class AnthropicService {
                                         ],
                                         "distance": [
                                             "type": "integer",
-                                            "description": "Distance per rep in meters"
+                                            "description": "Distance per rep in yards (must be a multiple of 25, e.g. 25, 50, 75, 100)"
                                         ],
                                         "rest": [
                                             "type": "integer",
@@ -263,7 +264,7 @@ final class AnthropicService {
 
     private let enduranceTargetTool: [String: Any] = [
         "name": "set_endurance_targets",
-        "description": "Set weekly endurance targets (longest continuous swim distance in meters) for the swimmer's training plan. Use this when creating or updating a training plan to define progressive weekly goals.",
+        "description": "Set weekly endurance targets (longest continuous swim distance in yards) for the swimmer's training plan. Use this when creating or updating a training plan to define progressive weekly goals.",
         "input_schema": [
             "type": "object",
             "properties": [
@@ -279,7 +280,7 @@ final class AnthropicService {
                             ],
                             "target_distance": [
                                 "type": "number",
-                                "description": "Target longest continuous swim distance in meters for this week"
+                                "description": "Target longest continuous swim distance in yards for this week"
                             ],
                             "notes": [
                                 "type": "string",
@@ -503,10 +504,10 @@ final class AnthropicService {
             // Debug: validate Coach's total vs calculated total
             let calculatedTotal = workout.actualTotalDistance
             print("[Workout] \(title)")
-            print("[Workout]   Coach's total: \(totalDistance)m")
-            print("[Workout]   Calculated total: \(calculatedTotal)m")
+            print("[Workout]   Coach's total: \(totalDistance)yd")
+            print("[Workout]   Calculated total: \(calculatedTotal)yd")
             if abs(calculatedTotal - totalDistance) > 50 {
-                print("[Workout]   ⚠️ MISMATCH: difference of \(calculatedTotal - totalDistance)m")
+                print("[Workout]   ⚠️ MISMATCH: difference of \(calculatedTotal - totalDistance)yd")
             }
         }
 
@@ -533,7 +534,7 @@ final class AnthropicService {
                 coachNotes: notes
             )
             parsed.append(target)
-            print("[Coach] Endurance target: week \(weekNumber) → \(Int(targetDistance))m\(notes.map { " (\($0))" } ?? "")")
+            print("[Coach] Endurance target: week \(weekNumber) → \(Int(targetDistance))yd\(notes.map { " (\($0))" } ?? "")")
         }
 
         pendingEnduranceTargets = parsed
@@ -553,10 +554,10 @@ final class AnthropicService {
                 existing.targetDistance = target.targetDistance
                 existing.setDate = target.setDate
                 existing.coachNotes = target.coachNotes
-                print("[Coach] Updated endurance target for week \(weekNum): \(Int(target.targetDistance))m")
+                print("[Coach] Updated endurance target for week \(weekNum): \(Int(target.targetDistance))yd")
             } else {
                 modelContext.insert(target)
-                print("[Coach] Inserted endurance target for week \(weekNum): \(Int(target.targetDistance))m")
+                print("[Coach] Inserted endurance target for week \(weekNum): \(Int(target.targetDistance))yd")
             }
         }
         try? modelContext.save()
@@ -574,21 +575,21 @@ final class AnthropicService {
         // Build workout details
         var workoutDetails = "WORKOUT TO ANALYZE:\n"
         workoutDetails += "Date: \(session.date.formatted(date: .abbreviated, time: .omitted))\n"
-        workoutDetails += "Distance: \(Int(session.distance))m\n"
+        workoutDetails += "Distance: \(Int(session.distance)) yards\n"
         workoutDetails += "Duration: \(Int(session.duration)) min\n"
         workoutDetails += "Difficulty: \(session.difficulty)/10\n"
 
         if let data = session.detailedData {
             workoutDetails += "Sets: \(data.sets.count)\n"
             for (i, set) in data.sets.enumerated() {
-                workoutDetails += "  Set \(i + 1): \(Int(set.totalDistance))m, \(set.strokeType)"
+                workoutDetails += "  Set \(i + 1): \(Int(set.totalDistance)) yards, \(set.strokeType)"
                 if let swolf = set.averageSWOLF { workoutDetails += ", SWOLF \(Int(swolf))" }
-                if let pace = set.averagePace { workoutDetails += ", pace \(String(format: "%.1f", pace))min/100m" }
+                if let pace = set.averagePace { workoutDetails += ", pace \(String(format: "%.1f", pace))min/100yd" }
                 if let hr = set.averageHeartRate { workoutDetails += ", HR \(hr)bpm" }
                 workoutDetails += "\n"
             }
             if let swolf = data.averageSWOLF { workoutDetails += "Overall SWOLF: \(Int(swolf))\n" }
-            if let pace = data.averagePace { workoutDetails += "Overall pace: \(String(format: "%.1f", pace))min/100m\n" }
+            if let pace = data.averagePace { workoutDetails += "Overall pace: \(String(format: "%.1f", pace))min/100yd\n" }
             if let hr = data.averageHeartRate { workoutDetails += "Avg HR: \(hr)bpm\n" }
             if let maxHR = data.maxHeartRate { workoutDetails += "Max HR: \(maxHR)bpm\n" }
         }
@@ -602,10 +603,10 @@ final class AnthropicService {
         if !history.isEmpty {
             workoutDetails += "\nRECENT HISTORY (for trend comparison):\n"
             for s in history {
-                workoutDetails += "  \(s.date.formatted(date: .abbreviated, time: .omitted)): \(Int(s.distance))m in \(Int(s.duration))min, difficulty \(s.difficulty)/10"
+                workoutDetails += "  \(s.date.formatted(date: .abbreviated, time: .omitted)): \(Int(s.distance)) yards in \(Int(s.duration))min, difficulty \(s.difficulty)/10"
                 if let data = s.detailedData {
                     if let swolf = data.averageSWOLF { workoutDetails += ", SWOLF \(Int(swolf))" }
-                    if let pace = data.averagePace { workoutDetails += ", pace \(String(format: "%.1f", pace))min/100m" }
+                    if let pace = data.averagePace { workoutDetails += ", pace \(String(format: "%.1f", pace))min/100yd" }
                 }
                 workoutDetails += "\n"
             }

@@ -17,9 +17,9 @@ struct WorkoutCardView: View {
         let fmt = NumberFormatter()
         fmt.numberStyle = .decimal
         let loStr = fmt.string(from: NSNumber(value: lo)) ?? "\(lo)"
-        if lo == hi { return "\(loStr)m" }
+        if lo == hi { return "\(loStr)yd" }
         let hiStr = fmt.string(from: NSNumber(value: hi)) ?? "\(hi)"
-        return "\(loStr)–\(hiStr)m"
+        return "\(loStr)–\(hiStr)yd"
     }
 
     private var scheduleSummary: String {

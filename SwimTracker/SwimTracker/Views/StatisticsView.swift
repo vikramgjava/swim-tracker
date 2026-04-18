@@ -136,7 +136,7 @@ struct StatisticsView: View {
                 } else {
                     // Legend with axis unit labels
                     HStack {
-                        Text("km")
+                        Text("k yd")
                             .font(.caption2.bold())
                             .foregroundStyle(.teal)
                         HStack(spacing: 12) {
@@ -170,7 +170,7 @@ struct StatisticsView: View {
                         }
                         .frame(maxWidth: .infinity)
                         if hasEnduranceData {
-                            Text("m")
+                            Text("yd")
                                 .font(.caption2.bold())
                                 .foregroundStyle(.purple)
                         }
@@ -185,20 +185,20 @@ struct StatisticsView: View {
                     let distYMin = max(0, floor((distMin - distStep * 0.5) / distStep) * distStep)
                     let distYMax = ceil((distMax + distStep * 0.5) / distStep) * distStep
 
-                    // Fixed endurance axis: 0–3,000m (Alcatraz goal)
-                    let endurCeil: Double = 3000
+                    // Fixed endurance axis: 0–3,200 yards (Alcatraz goal)
+                    let endurCeil: Double = 3200
                     let distYRange = distYMax - distYMin
 
-                    // Map endurance (meters) → chart Y (km scale)
-                    // 0m maps to distYMin, 3000m maps to distYMax
-                    let endurToChart: (Double) -> Double = { meters in
+                    // Map endurance (yards) → chart Y (k-yards scale)
+                    // 0yd maps to distYMin, 3200yd maps to distYMax
+                    let endurToChart: (Double) -> Double = { yards in
                         guard distYRange > 0 else { return distYMin }
-                        return distYMin + (meters / endurCeil) * distYRange
+                        return distYMin + (yards / endurCeil) * distYRange
                     }
 
                     // Precompute endurance grid values mapped to chart Y scale
-                    // Every 600m: 0, 600, 1200, 1800, 2400, 3000
-                    let endurGridChartValues = stride(from: 0.0, through: 3000.0, by: 600.0).map { endurToChart($0) }
+                    // Every 800yd: 0, 800, 1600, 2400, 3200
+                    let endurGridChartValues = stride(from: 0.0, through: 3200.0, by: 800.0).map { endurToChart($0) }
 
                     // 4-week averages (exclude current incomplete week)
                     let completedWeeks = weeklyTotals.filter { !$0.isCurrent }
@@ -286,15 +286,15 @@ struct StatisticsView: View {
                                 }
                             }
                         }
-                        // Right axis: Endurance (m) — purple, fixed 0–3,000m, every 600m
+                        // Right axis: Endurance (yd) — purple, fixed 0–3,200yd, every 800yd
                         if hasEnduranceData {
                             AxisMarks(position: .trailing, values: endurGridChartValues) { value in
                                 AxisGridLine(stroke: StrokeStyle(lineWidth: 1))
                                     .foregroundStyle(.purple.opacity(0.18))
                                 AxisValueLabel {
                                     if let chartKm = value.as(Double.self), distYRange > 0 {
-                                        let meters = Int(((chartKm - distYMin) / distYRange) * 3000)
-                                        Text("\(meters)")
+                                        let yards = Int(((chartKm - distYMin) / distYRange) * 3200)
+                                        Text("\(yards)")
                                             .font(.caption2)
                                             .foregroundStyle(.purple)
                                     }
@@ -439,25 +439,25 @@ struct StatisticsView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// Format meters as km with unit suffix (e.g. "4.6km", "800m")
-    private func formatKm(_ meters: Double) -> String {
-        if meters >= 1000 {
-            return String(format: "%.1fkm", meters / 1000)
+    /// Format yards as kilo-yards with unit suffix (e.g. "4.6k yd", "800yd")
+    private func formatKm(_ yards: Double) -> String {
+        if yards >= 1000 {
+            return String(format: "%.1fk yd", yards / 1000)
         }
-        return "\(Int(meters))m"
+        return "\(Int(yards))yd"
     }
 
-    /// Format meters as km number only, no unit (e.g. "4.6", "0.8")
-    private func formatKmNum(_ meters: Double) -> String {
-        return String(format: "%.1f", meters / 1000)
+    /// Format yards as kilo-yards number only, no unit (e.g. "4.6", "0.8")
+    private func formatKmNum(_ yards: Double) -> String {
+        return String(format: "%.1f", yards / 1000)
     }
 
-    private func swimHeatColor(_ distanceM: Double) -> Color {
-        if distanceM <= 0 {
+    private func swimHeatColor(_ distanceY: Double) -> Color {
+        if distanceY <= 0 {
             return Color(.systemGray4).opacity(0.25)
-        } else if distanceM < 1000 {
+        } else if distanceY < 1100 {
             return Color.teal.opacity(0.45)
-        } else if distanceM < 1500 {
+        } else if distanceY < 1650 {
             return Color.blue.opacity(0.65)
         } else {
             return Color.blue
@@ -467,7 +467,7 @@ struct StatisticsView: View {
     private struct WeekTotalData {
         let label: String
         let distance: Double
-        let longestSet: Double? // best longest single set that week (meters), nil if no detailed data
+        let longestSet: Double? // best longest single set that week (yards), nil if no detailed data
         let isCurrent: Bool
         let dateRange: String // e.g. "Feb 3–9"
     }
@@ -507,8 +507,8 @@ struct StatisticsView: View {
         var id: Int { day }
         let day: Int
         let cumulativeKm: Double
-        let bestSetM: Double   // running max of longest set (meters)
-        let dayDistanceM: Double // distance swum this specific day (meters)
+        let bestSetM: Double   // running max of longest set (yards)
+        let dayDistanceM: Double // distance swum this specific day (yards)
     }
 
     private struct MonthTotalData {
@@ -1274,7 +1274,7 @@ struct StatisticsView: View {
                         .foregroundStyle(.blue.gradient)
                         .cornerRadius(4)
                     }
-                    .chartYAxisLabel("meters")
+                    .chartYAxisLabel("yards")
                     .frame(height: 150)
                 }
 
@@ -1319,7 +1319,7 @@ struct StatisticsView: View {
                             Text("Longest Continuous")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            Text("\(Int(longest))m")
+                            Text("\(Int(longest))yd")
                                 .font(.subheadline.bold())
                         }
                     }
@@ -1358,11 +1358,11 @@ struct StatisticsView: View {
         return SectionCard(title: "All-Time Stats", icon: "trophy.fill") {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
                 QuickStat(title: "Total Swims", value: "\(totalSwims)", icon: "figure.pool.swim", color: .blue)
-                QuickStat(title: "Total Distance", value: totalDistance >= 1000 ? String(format: "%.1fkm", totalDistance / 1000) : "\(Int(totalDistance))m", icon: "ruler", color: .teal)
-                QuickStat(title: "Total Time", value: totalTime >= 60 ? String(format: "%.0fh", totalTime / 60) : "\(Int(totalTime))m", icon: "clock", color: .purple)
-                QuickStat(title: "Avg Distance", value: "\(Int(avgDistance))m", icon: "chart.bar", color: .blue)
+                QuickStat(title: "Total Distance", value: totalDistance >= 1000 ? String(format: "%.1fk yd", totalDistance / 1000) : "\(Int(totalDistance))yd", icon: "ruler", color: .teal)
+                QuickStat(title: "Total Time", value: totalTime >= 60 ? String(format: "%.0fh", totalTime / 60) : "\(Int(totalTime))min", icon: "clock", color: .purple)
+                QuickStat(title: "Avg Distance", value: "\(Int(avgDistance))yd", icon: "chart.bar", color: .blue)
                 QuickStat(title: "Best Pace", value: bestPace != nil ? "\(formatPace(bestPace!))" : "N/A", icon: "speedometer", color: .green)
-                QuickStat(title: "Best Distance", value: "\(Int(bestDistance))m", icon: "arrow.up", color: .teal)
+                QuickStat(title: "Best Distance", value: "\(Int(bestDistance))yd", icon: "arrow.up", color: .teal)
                 if let swolf = bestSwolf {
                     QuickStat(title: "Best SWOLF", value: "\(Int(swolf))", icon: "gauge.with.dots.needle.33percent", color: swolfColor(Int(swolf)))
                 }

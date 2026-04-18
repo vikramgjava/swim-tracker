@@ -135,7 +135,7 @@ private struct WorkoutPreviewPage: View {
                     HStack(spacing: 16) {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.left.and.right")
-                            Text("\(workout.actualTotalDistance)m")
+                            Text("\(workout.actualTotalDistance)yd")
                                 .font(.title2.bold())
                             if isDistanceCorrect {
                                 Image(systemName: "checkmark.circle.fill")
@@ -208,10 +208,10 @@ private struct WorkoutPreviewPage: View {
         )
     }
 
-    private func formatDistance(_ meters: Int) -> String {
+    private func formatDistance(_ yards: Int) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
-        return (formatter.string(from: NSNumber(value: meters)) ?? "\(meters)") + "m"
+        return (formatter.string(from: NSNumber(value: yards)) ?? "\(yards)") + "yd"
     }
 }
 
@@ -232,7 +232,7 @@ private struct SetPreviewRow: View {
 
             VStack(alignment: .leading, spacing: 3) {
                 HStack(spacing: 8) {
-                    Text("\(set.reps)\u{00D7}\(set.distance)m")
+                    Text("\(set.reps)\u{00D7}\(set.distance)yd")
                         .font(.subheadline.bold().monospaced())
 
                     if set.rest > 0 {
@@ -243,7 +243,7 @@ private struct SetPreviewRow: View {
 
                     Spacer()
 
-                    Text("\(set.reps * set.distance)m")
+                    Text("\(set.reps * set.distance)yd")
                         .font(.caption.bold())
                         .foregroundStyle(.secondary)
                 }

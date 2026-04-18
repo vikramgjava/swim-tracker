@@ -351,7 +351,7 @@ struct ChatView: View {
         if !recentSessions.isEmpty {
             var sessionLines = ["RECENT SWIM SESSIONS:"]
             for s in recentSessions {
-                var line = "  \(s.date.formatted(date: .abbreviated, time: .omitted)): \(Int(s.distance))m in \(Int(s.duration))min, difficulty \(s.difficulty)/10"
+                var line = "  \(s.date.formatted(date: .abbreviated, time: .omitted)): \(Int(s.distance))yd in \(Int(s.duration))min, difficulty \(s.difficulty)/10"
                 if !s.notes.isEmpty { line += " — \(s.notes)" }
                 if s.healthKitId != nil { line += " (from Apple Watch)" }
 
@@ -360,7 +360,7 @@ struct ChatView: View {
                     var details: [String] = []
                     details.append("Apple Watch data: \(data.sets.count) sets")
                     for (i, set) in data.sets.enumerated() {
-                        var setDesc = "Set \(i + 1): \(Int(set.totalDistance))m"
+                        var setDesc = "Set \(i + 1): \(Int(set.totalDistance))yd"
                         if let swolf = set.averageSWOLF {
                             setDesc += " (avg SWOLF \(Int(swolf)))"
                         }
@@ -377,10 +377,10 @@ struct ChatView: View {
                         details.append("Overall SWOLF: \(Int(swolf)) (\(swolfLabel(Int(swolf))))")
                     }
                     if let pace = data.averagePace {
-                        details.append("Avg pace: \(formatPace(pace))/100m")
+                        details.append("Avg pace: \(formatPace(pace))/100yd")
                     }
                     if let longestSet = data.longestContinuousSet {
-                        details.append("Longest single set: \(Int(longestSet.totalDistance))m")
+                        details.append("Longest single set: \(Int(longestSet.totalDistance))yd")
                     }
                     // Stroke distribution
                     let strokeTypes = data.sets.map(\.strokeType)
@@ -412,16 +412,16 @@ struct ChatView: View {
             var summary = """
             PROGRESS SUMMARY:
               Total swims: \(totalSwims)
-              Total distance: \(Int(totalDistance))m
-              Average pace: \(String(format: "%.0f", avgPace))m/min
-              Goal: 3,000m continuous by August 30, 2026
+              Total distance: \(Int(totalDistance))yd
+              Average pace: \(String(format: "%.0f", avgPace))yd/min
+              Goal: 3,200 yards continuous by August 30, 2026
             """
             if let pr = prDistance {
-                summary += "\n  Longest single set (no rest >15s): \(Int(pr))m"
+                summary += "\n  Longest single set (no rest >15s): \(Int(pr))yd"
                 if let date = prDate {
                     summary += " (achieved \(date.formatted(date: .abbreviated, time: .omitted)))"
                 }
-                summary += "\n  Endurance target: 3,000m continuous (accounts for SF Bay currents during Alcatraz swim)"
+                summary += "\n  Endurance target: 3,200 yards continuous (accounts for SF Bay currents during Alcatraz swim)"
             }
             parts.append(summary)
         }
@@ -430,7 +430,7 @@ struct ChatView: View {
         if !enduranceTargets.isEmpty {
             var targetLines = ["CURRENT ENDURANCE TARGETS (weekly longest continuous swim):"]
             for t in enduranceTargets {
-                var line = "  Week \(t.weekNumber): \(Int(t.targetDistance))m"
+                var line = "  Week \(t.weekNumber): \(Int(t.targetDistance))yd"
                 if let notes = t.coachNotes { line += " — \(notes)" }
                 targetLines.append(line)
             }
@@ -441,7 +441,7 @@ struct ChatView: View {
         if !upcomingWorkouts.isEmpty {
             var workoutLines = ["CURRENT UPCOMING WORKOUTS:"]
             for w in upcomingWorkouts {
-                workoutLines.append("  \(w.scheduledDate.formatted(date: .abbreviated, time: .omitted)): \(w.title) — \(w.totalDistance)m, \(w.focus), effort \(w.effortLevel)")
+                workoutLines.append("  \(w.scheduledDate.formatted(date: .abbreviated, time: .omitted)): \(w.title) — \(w.totalDistance)yd, \(w.focus), effort \(w.effortLevel)")
             }
             parts.append(workoutLines.joined(separator: "\n"))
         }
@@ -478,13 +478,13 @@ struct ChatView: View {
         guard let lastSwim = sessions.first else { return }
 
         let totalDistance = sessions.reduce(0) { $0 + $1.distance }
-        let goalDistance = 3000.0
+        let goalDistance = 3200.0
         let progress = min(totalDistance / goalDistance * 100, 100)
 
         var text = """
         Here's my latest swim data:
         - Date: \(lastSwim.date.formatted(date: .abbreviated, time: .omitted))
-        - Distance: \(Int(lastSwim.distance))m
+        - Distance: \(Int(lastSwim.distance))yd
         - Duration: \(Int(lastSwim.duration)) min
         - Difficulty: \(lastSwim.difficulty)/10
         """
@@ -500,7 +500,7 @@ struct ChatView: View {
                 text += "\n- SWOLF: \(Int(swolf))"
             }
             if let pace = data.averagePace {
-                text += "\n- Pace: \(formatPace(pace))/100m"
+                text += "\n- Pace: \(formatPace(pace))/100yd"
             }
             if let hr = data.averageHeartRate {
                 text += "\n- Avg HR: \(hr) bpm"
@@ -508,13 +508,13 @@ struct ChatView: View {
             text += "\n- Sets: \(data.sets.count)"
         }
 
-        text += "\n\nProgress toward 3,000m goal: \(String(format: "%.0f", progress))% (\(Int(totalDistance))m total)"
+        text += "\n\nProgress toward 3,200 yard goal: \(String(format: "%.0f", progress))% (\(Int(totalDistance))yd total)"
 
         let recentSwims = sessions.prefix(3)
         if recentSwims.count > 1 {
             text += "\n\nLast \(recentSwims.count) swims:"
             for swim in recentSwims {
-                text += "\n  \(swim.date.formatted(date: .abbreviated, time: .omitted)): \(Int(swim.distance))m in \(Int(swim.duration))min (difficulty \(swim.difficulty)/10)"
+                text += "\n  \(swim.date.formatted(date: .abbreviated, time: .omitted)): \(Int(swim.distance))yd in \(Int(swim.duration))min (difficulty \(swim.difficulty)/10)"
             }
         }
 
