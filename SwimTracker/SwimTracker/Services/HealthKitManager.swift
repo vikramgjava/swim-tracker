@@ -223,8 +223,7 @@ class HealthKitManager {
         }
 
         // Detect rest periods and group laps into sets
-        // Rest = gap > 15s between one lap's end and next lap's start
-        // 15s allows touch-and-go at walls but counts actual rest breaks as new sets
+        // Rest = gap > 30s between one lap's end and next lap's start
         var sets: [SwimSet] = []
         var currentSetLaps: [LapData] = []
 
@@ -238,12 +237,12 @@ class HealthKitManager {
                 let currentEnd = distances[index].endDate
                 let nextStart = distances[index + 1].startDate
                 let gap = nextStart.timeIntervalSince(currentEnd)
-                if gap > 15 {
+                if gap > 30 {
                     restDuration = gap
                 }
             }
 
-            if restDuration > 15 || isLastLap {
+            if restDuration > 30 || isLastLap {
                 // Close the current set
                 let set = buildSwimSet(laps: currentSetLaps, restAfter: isLastLap ? 0 : restDuration, bpmUnit: bpmUnit, hrSamples: hrSamples, distances: distances, startIndex: index - currentSetLaps.count + 1)
                 sets.append(set)
