@@ -125,7 +125,7 @@ struct WorkoutDetailSheet: View {
                     .padding(.vertical, 4)
 
                     HStack(spacing: 20) {
-                        Label("\(workout.actualTotalDistance)m", systemImage: "arrow.left.and.right")
+                        Label("\(workout.actualTotalDistance)yd", systemImage: "arrow.left.and.right")
                         Label(workout.effortLevel, systemImage: "flame.fill")
                     }
                     .font(.subheadline.bold())
@@ -206,7 +206,7 @@ struct WorkoutCard: View {
 
             // Stats row
             HStack(spacing: 16) {
-                Label("\(workout.actualTotalDistance)m", systemImage: "arrow.left.and.right")
+                Label("\(workout.actualTotalDistance)yd", systemImage: "arrow.left.and.right")
                 Label(workout.focus, systemImage: "target")
                 Label(workout.effortLevel, systemImage: "flame.fill")
             }
@@ -242,7 +242,7 @@ struct SetRow: View {
                 .padding(.vertical, 2)
                 .background(colorForType(set.type), in: Capsule())
 
-            Text("\(set.reps)\u{00D7}\(set.distance)m")
+            Text("\(set.reps)\u{00D7}\(set.distance)yd")
                 .font(.caption.monospaced())
 
             if set.rest > 0 {

@@ -3,11 +3,11 @@ import SwiftData
 
 struct LapData: Codable, Identifiable {
     var id = UUID()
-    var distance: Double        // meters
+    var distance: Double        // yards
     var duration: TimeInterval  // seconds
     var strokeCount: Int?
     var swolf: Int?             // strokeCount + seconds (nil if no stroke data)
-    var pace: Double?           // minutes per 100m
+    var pace: Double?           // minutes per 100 yards
     var strokeType: String?     // "Freestyle", "Backstroke", etc.
     var heartRate: Int?         // average bpm for this lap
 }
@@ -19,7 +19,7 @@ struct SwimSet: Codable, Identifiable {
     var totalDistance: Double
     var totalDuration: TimeInterval
     var averageSWOLF: Double?
-    var averagePace: Double?        // minutes per 100m
+    var averagePace: Double?        // minutes per 100 yards
     var strokeType: String          // majority stroke type in set
     var averageHeartRate: Int?
     var maxHeartRate: Int?
@@ -31,7 +31,7 @@ struct WorkoutDetailedData: Codable {
     var totalDuration: TimeInterval
     var longestContinuousDistance: Double? // longest single set distance (no rest); nil for legacy data
     var averageSWOLF: Double?
-    var averagePace: Double?        // minutes per 100m
+    var averagePace: Double?        // minutes per 100 yards
     var averageHeartRate: Int?
     var maxHeartRate: Int?
 
@@ -51,7 +51,7 @@ struct WorkoutDetailedData: Codable {
 @Model
 final class SwimSession {
     var date: Date
-    var distance: Double // meters
+    var distance: Double // yards
     var duration: Double // minutes
     var notes: String
     var difficulty: Int  // 1-10

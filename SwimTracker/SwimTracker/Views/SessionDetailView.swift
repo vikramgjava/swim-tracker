@@ -35,9 +35,9 @@ struct SessionDetailView: View {
     private var shareSummary: String {
         var text = """
         Swim Session — \(session.date.formatted(date: .abbreviated, time: .omitted))
-        Distance: \(Int(session.distance))m
+        Distance: \(Int(session.distance))yd
         Duration: \(Int(session.duration)) min
-        Pace: \(pacePerHundred) / 100m
+        Pace: \(pacePerHundred) / 100yd
         Difficulty: \(session.difficulty)/10
         """
         if !session.notes.isEmpty {
@@ -46,7 +46,7 @@ struct SessionDetailView: View {
         if let workout = linkedWorkout {
             text += "\n\nWorkout: \(workout.title) (\(workout.focus))"
             for set in workout.sets {
-                text += "\n  \(set.type): \(set.reps)\u{00D7}\(set.distance)m (rest: \(set.rest)s)"
+                text += "\n  \(set.type): \(set.reps)\u{00D7}\(set.distance)yd (rest: \(set.rest)s)"
             }
         }
         return text
@@ -112,13 +112,13 @@ struct SessionDetailView: View {
         .onAppear {
             loadLinkedWorkout()
             // Debug: verify detailedData is loading
-            print("[SessionDetail] Opening session: \(session.date.formatted(date: .abbreviated, time: .omitted)), distance=\(Int(session.distance))m")
+            print("[SessionDetail] Opening session: \(session.date.formatted(date: .abbreviated, time: .omitted)), distance=\(Int(session.distance))yd")
             print("[SessionDetail] healthKitId=\(session.healthKitId ?? "nil")")
             print("[SessionDetail] detailedDataJSON exists=\(session.detailedDataJSON != nil)")
             if let data = session.detailedData {
-                print("[SessionDetail] detailedData decoded OK: \(data.sets.count) sets, longestContinuous=\(data.effectiveLongestContinuousDistance)m")
+                print("[SessionDetail] detailedData decoded OK: \(data.sets.count) sets, longestContinuous=\(data.effectiveLongestContinuousDistance)yd")
                 for (i, set) in data.sets.enumerated() {
-                    print("[SessionDetail]   Set \(i+1): \(Int(set.totalDistance))m, \(set.laps.count) laps, SWOLF=\(set.averageSWOLF.map { String(Int($0)) } ?? "N/A"), pace=\(set.averagePace.map { formatPace($0) } ?? "N/A"), HR=\(set.averageHeartRate.map { "\($0)" } ?? "N/A")")
+                    print("[SessionDetail]   Set \(i+1): \(Int(set.totalDistance))yd, \(set.laps.count) laps, SWOLF=\(set.averageSWOLF.map { String(Int($0)) } ?? "N/A"), pace=\(set.averagePace.map { formatPace($0) } ?? "N/A"), HR=\(set.averageHeartRate.map { "\($0)" } ?? "N/A")")
                 }
             } else {
                 print("[SessionDetail] detailedData is nil! JSON present=\(session.detailedDataJSON != nil)")
@@ -138,12 +138,12 @@ struct SessionDetailView: View {
                 Text(session.date, style: .date)
             }
             LabeledContent("Distance") {
-                Text("\(Int(session.distance)) meters")
+                Text("\(Int(session.distance)) yards")
             }
             LabeledContent("Duration") {
                 Text("\(Int(session.duration)) minutes")
             }
-            LabeledContent("Pace per 100m") {
+            LabeledContent("Pace per 100yd") {
                 Text(pacePerHundred)
                     .monospacedDigit()
             }
@@ -181,7 +181,7 @@ struct SessionDetailView: View {
 
                 if let pace = data.averagePace {
                     LabeledContent("Avg Pace") {
-                        Text("\(formatPace(pace)) /100m")
+                        Text("\(formatPace(pace)) /100yd")
                             .monospacedDigit()
                     }
                 } else {
@@ -291,7 +291,7 @@ struct SessionDetailView: View {
                                     Text("Lap \(lapIndex + 1)")
                                         .font(.caption.bold())
                                         .frame(width: 48, alignment: .leading)
-                                    Text("\(Int(lap.distance))m")
+                                    Text("\(Int(lap.distance))yd")
                                         .font(.caption)
                                     Text(formatLapDuration(lap.duration))
                                         .font(.caption.monospacedDigit())
@@ -320,7 +320,7 @@ struct SessionDetailView: View {
 
                                 HStack(spacing: 8) {
                                     if let pace = lap.pace {
-                                        Text("\(formatPace(pace))/100m")
+                                        Text("\(formatPace(pace))/100yd")
                                             .font(.caption2)
                                             .foregroundStyle(.secondary)
                                     }
@@ -341,7 +341,7 @@ struct SessionDetailView: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 4) {
                             HStack {
-                                Text("Set \(index + 1): \(Int(set.totalDistance))m")
+                                Text("Set \(index + 1): \(Int(set.totalDistance))yd")
                                     .font(.subheadline.bold())
                                 Text("· \(set.laps.count) laps")
                                     .font(.caption)
@@ -420,8 +420,8 @@ struct SessionDetailView: View {
             DatePicker("Date", selection: $editDate, displayedComponents: .date)
 
             VStack(alignment: .leading) {
-                Text("Distance: \(Int(editDistance)) meters")
-                Slider(value: $editDistance, in: 100...3000, step: 50)
+                Text("Distance: \(Int(editDistance)) yards")
+                Slider(value: $editDistance, in: 100...3500, step: 25)
             }
 
             VStack(alignment: .leading) {

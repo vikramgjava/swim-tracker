@@ -41,7 +41,7 @@ struct SessionHistoryView: View {
             result = result.filter { session in
                 session.notes.lowercased().contains(query) ||
                 session.date.formatted(date: .abbreviated, time: .omitted).lowercased().contains(query) ||
-                "\(Int(session.distance))m".contains(query)
+                "\(Int(session.distance))yd".contains(query)
             }
         }
 
@@ -190,7 +190,7 @@ struct SessionHistoryRow: View {
             // Main info
             VStack(alignment: .leading, spacing: 4) {
                 HStack(spacing: 4) {
-                    Text("\(Int(session.distance))m")
+                    Text("\(Int(session.distance))yd")
                         .font(.subheadline.bold())
                     Text("·")
                         .foregroundStyle(.secondary)

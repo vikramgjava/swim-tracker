@@ -5,7 +5,7 @@ struct WorkoutSet: Codable, Identifiable {
     var id: UUID
     var type: String // "Warm-up", "KICK", "PULL", "Main", "Anaerobic", "Open Water"
     var reps: Int
-    var distance: Int // meters per rep
+    var distance: Int // yards per rep
     var rest: Int // seconds between reps
     var instructions: String
 

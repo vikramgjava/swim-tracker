@@ -28,9 +28,9 @@ struct EnduranceProgressionSection: View {
         !enduranceTargets.isEmpty
     }
 
-    // Constants
-    private let startingEndurance = 50.0
-    private let goalDistance = 3000.0
+    // Constants (yards)
+    private let startingEndurance = 55.0
+    private let goalDistance = 3200.0
 
     /// Calendar with Sunday as first day of week
     private static var sundayCalendar: Calendar = {
@@ -262,7 +262,7 @@ struct EnduranceProgressionSection: View {
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                         let recentColor: Color = lastWeekActual.map({ mostRecentActual >= $0 }) ?? true ? .green : .orange
-                        Text("\(Int(mostRecentActual))m")
+                        Text("\(Int(mostRecentActual))yd")
                             .font(.subheadline.bold())
                             .foregroundStyle(recentColor)
                     }
@@ -272,7 +272,7 @@ struct EnduranceProgressionSection: View {
                         Text("This Week")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                        Text("\(Int(thisWeekTarget))m")
+                        Text("\(Int(thisWeekTarget))yd")
                             .font(.subheadline.bold())
                             .foregroundStyle(.purple.opacity(0.7))
                     }
@@ -282,7 +282,7 @@ struct EnduranceProgressionSection: View {
                         Text("Next (Adaptive)")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
-                        Text("\(Int(nextWeekTarget))m")
+                        Text("\(Int(nextWeekTarget))yd")
                             .font(.subheadline.bold())
                             .foregroundStyle(.purple.opacity(0.7))
                     }
@@ -350,7 +350,7 @@ struct EnduranceProgressionSection: View {
 
             weekDetailRow(
                 label: "Week Target",
-                value: "\(Int(point.adaptivePlan))m",
+                value: "\(Int(point.adaptivePlan))yd",
                 valueColor: .primary
             )
 
@@ -359,7 +359,7 @@ struct EnduranceProgressionSection: View {
             if let next = nextTarget {
                 weekDetailRow(
                     label: "Next Week Target",
-                    value: "\(Int(next))m",
+                    value: "\(Int(next))yd",
                     valueColor: .secondary
                 )
             }
@@ -413,7 +413,7 @@ struct EnduranceProgressionSection: View {
         let actualText: String
         let color: Color
         if let actual = point.actual {
-            actualText = "\(Int(actual))m\(isCurrent ? " (so far)" : "")"
+            actualText = "\(Int(actual))yd\(isCurrent ? " (so far)" : "")"
             color = .purple
         } else {
             actualText = "No swims"
@@ -430,7 +430,7 @@ struct EnduranceProgressionSection: View {
             let suffix = isCurrent ? daysLeftSuffix(point.weekEnd) : ""
             weekDetailRow(
                 label: "Gap",
-                value: "\(sign)\(Int(gap))m\(suffix)",
+                value: "\(sign)\(Int(gap))yd\(suffix)",
                 valueColor: gap >= 0 ? .green : .orange
             )
         } else if isCurrent && point.actual == nil {

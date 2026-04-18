@@ -131,7 +131,7 @@ struct WorkoutRowCard: View {
 
                         Spacer()
 
-                        Text("\(workout.totalDistance)m")
+                        Text("\(workout.totalDistance)yd")
                             .font(.headline)
                             .foregroundStyle(.primary)
                     }
@@ -216,7 +216,7 @@ struct WorkoutRowCard: View {
         let warmup = sets.filter { $0.type == "Warm-up" }
         if !warmup.isEmpty {
             let dist = warmup.reduce(0) { $0 + $1.reps * $1.distance }
-            parts.append("Warm: \(dist)m")
+            parts.append("Warm: \(dist)yd")
         }
 
         let focus = sets.filter { ["KICK", "PULL"].contains($0.type) }
@@ -241,7 +241,7 @@ struct WorkoutRowCard: View {
     }
 
     private func setDesc(_ set: WorkoutSet) -> String {
-        set.reps == 1 ? "\(set.distance)m" : "\(set.reps)\u{00d7}\(set.distance)m"
+        set.reps == 1 ? "\(set.distance)yd" : "\(set.reps)\u{00d7}\(set.distance)yd"
     }
 }
 
@@ -266,7 +266,7 @@ struct WorkoutOverviewSheet: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
                         HStack(spacing: 16) {
-                            Label("\(workout.totalDistance)m total", systemImage: "ruler")
+                            Label("\(workout.totalDistance)yd total", systemImage: "ruler")
                             Label(workout.focus, systemImage: "target")
                         }
                         .font(.subheadline)
@@ -280,7 +280,7 @@ struct WorkoutOverviewSheet: View {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundStyle(.orange)
-                            Text("Calculated total: \(actual)m vs. stated \(workout.totalDistance)m")
+                            Text("Calculated total: \(actual)yd vs. stated \(workout.totalDistance)yd")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -297,15 +297,15 @@ struct WorkoutOverviewSheet: View {
                                     .font(.subheadline.bold())
                                     .foregroundStyle(setTypeColor(set.type))
                                 Spacer()
-                                Text("\(set.reps * set.distance)m")
+                                Text("\(set.reps * set.distance)yd")
                                     .font(.subheadline.bold())
                             }
 
                             HStack(spacing: 12) {
                                 if set.reps > 1 {
-                                    Label("\(set.reps)\u{00d7}\(set.distance)m", systemImage: "repeat")
+                                    Label("\(set.reps)\u{00d7}\(set.distance)yd", systemImage: "repeat")
                                 } else {
-                                    Label("\(set.distance)m", systemImage: "arrow.right")
+                                    Label("\(set.distance)yd", systemImage: "arrow.right")
                                 }
                                 if set.rest > 0 {
                                     Label("\(set.rest)s rest", systemImage: "clock")

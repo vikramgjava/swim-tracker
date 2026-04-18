@@ -138,8 +138,8 @@ struct DashboardView: View {
 
                     // Distance stats
                     LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 16) {
-                        StatCard(title: "This Week", value: String(format: "%.0fm", weeklyDistance), icon: "calendar", color: .blue)
-                        StatCard(title: "This Month", value: String(format: "%.0fm", monthlyDistance), icon: "calendar.badge.clock", color: .teal)
+                        StatCard(title: "This Week", value: String(format: "%.0fyd", weeklyDistance), icon: "calendar", color: .blue)
+                        StatCard(title: "This Month", value: String(format: "%.0fyd", monthlyDistance), icon: "calendar.badge.clock", color: .teal)
                     }
 
                     // Recent swims
@@ -161,7 +161,7 @@ struct DashboardView: View {
                                                         .foregroundStyle(.blue)
                                                 }
                                             }
-                                            Text("\(Int(session.distance))m  ·  \(Int(session.duration)) min")
+                                            Text("\(Int(session.distance))yd  ·  \(Int(session.duration)) min")
                                                 .font(.caption)
                                                 .foregroundStyle(.secondary)
                                         }
@@ -243,12 +243,12 @@ struct DashboardView: View {
     // MARK: - Goal Progress
 
     private var goalProgressSection: some View {
-        let goalDistance = 3000.0
+        let goalDistance = 3200.0
         let bestSession = sessions.max { $0.longestContinuousDistance < $1.longestContinuousDistance }
         let longestContinuousSwim = bestSession?.longestContinuousDistance ?? 0
         let progress = min(longestContinuousSwim / goalDistance, 1.0)
         let _ = {
-            print("[Dashboard] Goal Progress: longestContinuousSwim=\(Int(longestContinuousSwim))m, progress=\(Int(progress * 100))%")
+            print("[Dashboard] Goal Progress: longestContinuousSwim=\(Int(longestContinuousSwim))yd, progress=\(Int(progress * 100))%")
         }()
 
         // Best longestContinuousDistance per calendar week (last 5 weeks)
@@ -267,7 +267,7 @@ struct DashboardView: View {
             return result
         }()
 
-        // Weighted rate (meters/week) from week-over-week improvements
+        // Weighted rate (yards/week) from week-over-week improvements
         let weightedRate: Double? = {
             guard weeklyBests.count >= 2 else { return nil }
             var totalWeight = 0.0
@@ -279,12 +279,12 @@ struct DashboardView: View {
                 totalWeight += weight
             }
             let ratePerWeek = weightedSum / totalWeight
-            return ratePerWeek > 0 ? ratePerWeek / 7.0 : nil // convert to meters/day
+            return ratePerWeek > 0 ? ratePerWeek / 7.0 : nil // convert to yards/day
         }()
         let _ = {
-            print("[Dashboard] Weekly bests (last 5wk): \(weeklyBests.map { "\(Int($0))m" }.joined(separator: " → "))")
+            print("[Dashboard] Weekly bests (last 5wk): \(weeklyBests.map { "\(Int($0))yd" }.joined(separator: " → "))")
             if let rate = weightedRate {
-                print("[Dashboard] Rate calc: \(String(format: "%.1f", rate)) m/day (\(String(format: "%.0f", rate * 7)) m/wk)")
+                print("[Dashboard] Rate calc: \(String(format: "%.1f", rate)) yd/day (\(String(format: "%.0f", rate * 7)) yd/wk)")
             } else {
                 print("[Dashboard] Rate calc: insufficient data")
             }
@@ -335,7 +335,7 @@ struct DashboardView: View {
                 VStack(spacing: 4) {
                     Text("\(Int(progress * 100))%")
                         .font(.title.bold())
-                    Text("\(Int(longestContinuousSwim))m / \(Int(goalDistance))m")
+                    Text("\(Int(longestContinuousSwim))yd / \(Int(goalDistance))yd")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -353,7 +353,7 @@ struct DashboardView: View {
                             Text("Longest Continuous")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
-                            Text("\(Int(longestContinuousSwim))m")
+                            Text("\(Int(longestContinuousSwim))yd")
                                 .font(.subheadline.bold())
                             HStack(spacing: 2) {
                                 Text(best.date, format: .dateTime.month(.abbreviated).day().year())
@@ -378,7 +378,7 @@ struct DashboardView: View {
                     Text("Target")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("\(Int(goalDistance))m")
+                    Text("\(Int(goalDistance))yd")
                         .font(.subheadline.bold())
                 }
                 VStack(spacing: 4) {
@@ -396,17 +396,17 @@ struct DashboardView: View {
                     .foregroundStyle(isOnTrack ? .green : .red)
                 if isOnTrack {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(Int(remaining))m to go · \(daysUntilDeadline) days left")
+                        Text("\(Int(remaining))yd to go · \(daysUntilDeadline) days left")
                             .font(.caption.bold())
-                        Text("Current: ~\(Int(currentRatePerWeek))m/wk · Need: ~\(Int(requiredRatePerWeek))m/wk")
+                        Text("Current: ~\(Int(currentRatePerWeek))yd/wk · Need: ~\(Int(requiredRatePerWeek))yd/wk")
                             .font(.caption2)
                     }
                     .foregroundStyle(.green)
                 } else {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text("\(Int(remaining))m to go · \(daysUntilDeadline) days left")
+                        Text("\(Int(remaining))yd to go · \(daysUntilDeadline) days left")
                             .font(.caption.bold())
-                        Text("Current: ~\(Int(currentRatePerWeek))m/wk · Need: ~\(Int(requiredRatePerWeek))m/wk")
+                        Text("Current: ~\(Int(currentRatePerWeek))yd/wk · Need: ~\(Int(requiredRatePerWeek))yd/wk")
                             .font(.caption2)
                     }
                     .foregroundStyle(.red)
@@ -646,7 +646,7 @@ struct HealthKitImportSheet: View {
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(proxy.date, style: .date)
                                         .font(.subheadline.bold())
-                                    Text("\(Int(proxy.distance))m · \(Int(proxy.duration)) min")
+                                    Text("\(Int(proxy.distance))yd · \(Int(proxy.duration)) min")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
                                 }
@@ -672,7 +672,7 @@ struct HealthKitImportSheet: View {
                     Text(proxy.date, style: .date)
                 }
                 LabeledContent("Distance") {
-                    Text("\(Int(proxy.distance)) meters")
+                    Text("\(Int(proxy.distance)) yards")
                 }
                 LabeledContent("Duration") {
                     Text("\(Int(proxy.duration)) minutes")
@@ -699,7 +699,7 @@ struct HealthKitImportSheet: View {
                     }
                     if let pace = data.averagePace {
                         LabeledContent("Avg Pace") {
-                            Text("\(formatPace(pace)) /100m")
+                            Text("\(formatPace(pace)) /100yd")
                                 .monospacedDigit()
                         }
                     }
@@ -718,7 +718,7 @@ struct HealthKitImportSheet: View {
 
                     // Set summary
                     ForEach(Array(data.sets.enumerated()), id: \.offset) { index, set in
-                        Text("Set \(index + 1): \(Int(set.totalDistance))m (\(set.laps.count) laps)")
+                        Text("Set \(index + 1): \(Int(set.totalDistance))yd (\(set.laps.count) laps)")
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -809,7 +809,7 @@ struct HealthKitImportSheet: View {
             detailedData: detailedData
         )
         modelContext.insert(session)
-        print("[Import] Imported workout: \(proxy.date.formatted(date: .abbreviated, time: .omitted)), \(Int(proxy.distance))m, difficulty=\(importDifficulty)")
+        print("[Import] Imported workout: \(proxy.date.formatted(date: .abbreviated, time: .omitted)), \(Int(proxy.distance))yd, difficulty=\(importDifficulty)")
 
         // Mark linked workout as completed (Bug 2)
         if let workoutIdString = linkedWorkoutId,

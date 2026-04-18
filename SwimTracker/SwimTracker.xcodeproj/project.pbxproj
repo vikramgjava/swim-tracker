@@ -22,6 +22,7 @@
 		A1B2C3D40000001D /* WorkoutSeeder.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000D /* WorkoutSeeder.swift */; };
 		A1B2C3D40000001E /* SessionDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000E /* SessionDetailView.swift */; };
 		A1B2C3D40000001F /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D40000000F /* HealthKitManager.swift */; };
+		A1B2C3D400000092 /* UnitMigration.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000093 /* UnitMigration.swift */; };
 		A1B2C3D400000071 /* StatisticsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000070 /* StatisticsView.swift */; };
 		A1B2C3D400000073 /* SessionHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000072 /* SessionHistoryView.swift */; };
 		A1B2C3D400000075 /* WorkoutAnalysis.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D400000074 /* WorkoutAnalysis.swift */; };
@@ -75,6 +76,7 @@
 		A1B2C3D40000008C /* WeeklyProgressCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeeklyProgressCard.swift; sourceTree = "<group>"; };
 		A1B2C3D40000008E /* EnduranceProgressionSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnduranceProgressionSection.swift; sourceTree = "<group>"; };
 		A1B2C3D400000090 /* EnduranceTarget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnduranceTarget.swift; sourceTree = "<group>"; };
+		A1B2C3D400000093 /* UnitMigration.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UnitMigration.swift; sourceTree = "<group>"; };
 		A1B2C3D400000031 /* SwimTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwimTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -181,6 +183,7 @@
 			isa = PBXGroup;
 			children = (
 				A1B2C3D40000000D /* WorkoutSeeder.swift */,
+				A1B2C3D400000093 /* UnitMigration.swift */,
 			);
 			path = Helpers;
 			sourceTree = "<group>";
@@ -266,6 +269,7 @@
 				A1B2C3D40000001B /* ChatView.swift in Sources */,
 				A1B2C3D40000001C /* Workout.swift in Sources */,
 				A1B2C3D40000001D /* WorkoutSeeder.swift in Sources */,
+				A1B2C3D400000092 /* UnitMigration.swift in Sources */,
 				A1B2C3D40000001E /* SessionDetailView.swift in Sources */,
 				A1B2C3D40000001F /* HealthKitManager.swift in Sources */,
 				A1B2C3D400000071 /* StatisticsView.swift in Sources */,
@@ -421,11 +425,13 @@
 				DEVELOPMENT_ASSET_PATHS = "\"SwimTracker/Preview Content\"";
 				DEVELOPMENT_TEAM = 7UW43YH83S;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SwimTracker/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Alcatraz Training";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "SwimTracker needs access to your swim workouts to automatically log your training sessions and provide better coaching recommendations.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "SwimTracker may save swim workouts you log in the app back to the Health app so your training history stays in sync.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
@@ -453,11 +459,13 @@
 				DEVELOPMENT_ASSET_PATHS = "\"SwimTracker/Preview Content\"";
 				DEVELOPMENT_TEAM = 7UW43YH83S;
 				ENABLE_PREVIEWS = YES;
-				GENERATE_INFOPLIST_FILE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = SwimTracker/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Alcatraz Training";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "SwimTracker needs access to your swim workouts to automatically log your training sessions and provide better coaching recommendations.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "SwimTracker may save swim workouts you log in the app back to the Health app so your training history stays in sync.";
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";

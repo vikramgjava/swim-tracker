@@ -34,7 +34,7 @@ struct WorkoutAnalysisView: View {
                         Text(session.date.formatted(date: .long, time: .omitted))
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
-                        Text("\(Int(session.distance))m in \(Int(session.duration)) min")
+                        Text("\(Int(session.distance))yd in \(Int(session.duration)) min")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                     }

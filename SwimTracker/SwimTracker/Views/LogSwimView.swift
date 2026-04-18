@@ -21,8 +21,8 @@ struct LogSwimView: View {
                     DatePicker("Date", selection: $date, displayedComponents: .date)
 
                     VStack(alignment: .leading) {
-                        Text("Distance: \(Int(distance)) meters")
-                        Slider(value: $distance, in: 100...3000, step: 50)
+                        Text("Distance: \(Int(distance)) yards")
+                        Slider(value: $distance, in: 100...3500, step: 25)
                     }
 
                     VStack(alignment: .leading) {
@@ -66,7 +66,7 @@ struct LogSwimView: View {
             .alert("Swim Logged!", isPresented: $showConfirmation) {
                 Button("OK") { dismiss() }
             } message: {
-                Text("Your \(savedDistance)m swim has been saved.")
+                Text("Your \(savedDistance) yard swim has been saved.")
             }
         }
     }

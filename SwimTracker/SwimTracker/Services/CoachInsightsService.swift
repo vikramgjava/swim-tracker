@@ -80,7 +80,7 @@ final class CoachInsightsService {
             results.append(swolfInsight)
         }
 
-        // 5. Goal Proximity (3,000m continuous)
+        // 5. Goal Proximity (3,200 yards continuous)
         if let goalInsight = checkGoalProximity(sessions: sorted, onAction: onAction) {
             results.append(goalInsight)
         }
@@ -133,7 +133,7 @@ final class CoachInsightsService {
 
         return .celebration(
             title: "New Personal Record!",
-            description: "You hit \(Int(bestDistance))m continuous \u{2014} up \(improvement)m from your previous best. Keep pushing!",
+            description: "You hit \(Int(bestDistance)) yards continuous \u{2014} up \(improvement)yd from your previous best. Keep pushing!",
             action: InsightAction(label: "View Analysis") {
                 onAction("Analyze my recent personal record swim in detail")
             }
@@ -204,6 +204,16 @@ final class CoachInsightsService {
     }
 
     private func checkSWOLFTrend(lastWeek: [SwimSession], prevWeek: [SwimSession], onAction: @escaping (String) -> Void) -> CoachInsight? {
+        // SWOLF value is pool-length-dependent (shorter pool → lower SWOLF for same technique),
+        // so skip the comparison if the two windows straddle the 25m → 25y pool change.
+        let poolChangeDate = Calendar.current.date(from: DateComponents(year: 2026, month: 4, day: 17)) ?? .now
+        let lastAfter = lastWeek.contains { $0.date >= poolChangeDate }
+        let lastBefore = lastWeek.contains { $0.date < poolChangeDate }
+        let prevAfter = prevWeek.contains { $0.date >= poolChangeDate }
+        let prevBefore = prevWeek.contains { $0.date < poolChangeDate }
+        let straddle = (lastAfter && lastBefore) || (prevAfter && prevBefore) || (lastAfter != prevAfter && lastBefore != prevBefore)
+        if straddle { return nil }
+
         let lastWeekSWOLF = averageSWOLF(for: lastWeek)
         let prevWeekSWOLF = averageSWOLF(for: prevWeek)
 
@@ -238,7 +248,7 @@ final class CoachInsightsService {
     }
 
     private func checkGoalProximity(sessions: [SwimSession], onAction: @escaping (String) -> Void) -> CoachInsight? {
-        let goalDistance = 3000.0 // meters continuous for Alcatraz
+        let goalDistance = 3200.0 // yards continuous for Alcatraz
         let currentBest = sessions.map(\.longestContinuousDistance).max() ?? 0
 
         guard currentBest > 0 else { return nil }
@@ -251,7 +261,7 @@ final class CoachInsightsService {
             return .milestone(
                 icon: "star.fill",
                 title: "Almost There \u{2014} \(percent)% to Goal!",
-                description: "Your best continuous swim is \(Int(currentBest))m. You're so close to the 3,000m Alcatraz goal!",
+                description: "Your best continuous swim is \(Int(currentBest)) yards. You're so close to the 3,200 yard Alcatraz goal!",
                 action: InsightAction(label: "View Progress") {
                     onAction("I'm at \(percent)% of my Alcatraz goal. Analyze how close I am and what I need to do to get there.")
                 }
@@ -259,17 +269,17 @@ final class CoachInsightsService {
         } else if percent >= 50 {
             return .milestone(
                 title: "Halfway to Alcatraz! \(percent)%",
-                description: "Your best continuous distance is \(Int(currentBest))m out of 3,000m. Strong progress!",
+                description: "Your best continuous distance is \(Int(currentBest)) yards out of 3,200. Strong progress!",
                 action: InsightAction(label: "View Progress") {
-                    onAction("I'm at \(percent)% of my Alcatraz goal with \(Int(currentBest))m best continuous. What should I focus on next?")
+                    onAction("I'm at \(percent)% of my Alcatraz goal with \(Int(currentBest)) yards best continuous. What should I focus on next?")
                 }
             )
         } else if percent >= 25 {
             return .milestone(
                 title: "\(percent)% to Alcatraz Goal",
-                description: "Best continuous: \(Int(currentBest))m of 3,000m. You're building a strong foundation!",
+                description: "Best continuous: \(Int(currentBest)) yards of 3,200. You're building a strong foundation!",
                 action: InsightAction(label: "View Progress") {
-                    onAction("Analyze my progress toward the 3,000m Alcatraz goal \u{2014} currently at \(Int(currentBest))m best continuous.")
+                    onAction("Analyze my progress toward the 3,200 yard Alcatraz goal \u{2014} currently at \(Int(currentBest)) yards best continuous.")
                 }
             )
         }
@@ -291,7 +301,7 @@ final class CoachInsightsService {
             return .suggestion(
                 icon: "arrow.up.right.circle.fill",
                 title: "Volume Up \(Int(change))%!",
-                description: "You swam \(Int(lastWeekVolume))m this week vs \(Int(prevWeekVolume))m last week. Great effort \u{2014} watch for fatigue.",
+                description: "You swam \(Int(lastWeekVolume))yd this week vs \(Int(prevWeekVolume))yd last week. Great effort \u{2014} watch for fatigue.",
                 action: InsightAction(label: "Generate Workouts") {
                     onAction("Generate my next 3 workouts. I've increased volume significantly this week, so balance progression with recovery.")
                 }
@@ -300,7 +310,7 @@ final class CoachInsightsService {
             return .suggestion(
                 icon: "arrow.down.right.circle.fill",
                 title: "Volume Down \(Int(abs(change)))%",
-                description: "You swam \(Int(lastWeekVolume))m this week vs \(Int(prevWeekVolume))m last week. Let's get back on track!",
+                description: "You swam \(Int(lastWeekVolume))yd this week vs \(Int(prevWeekVolume))yd last week. Let's get back on track!",
                 action: InsightAction(label: "Adjust Plan") {
                     onAction("My swim volume dropped this week. Can you help me adjust my plan to get back on track?")
                 }
